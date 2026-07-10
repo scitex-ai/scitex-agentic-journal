@@ -17,3 +17,4 @@ htmlcov/
 GITIGNORED/
 .DS_Store
 .worktrees/
+.claude/*.lock
