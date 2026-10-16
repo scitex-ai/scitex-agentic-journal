@@ -5,6 +5,13 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
 ## [Unreleased]
 
 ### Added
+- Leaf `_django` demo surface (aj-leaf-django): `_django/_leaf.py`
+  (Django-free helpers: real-FS archive list, deterministic mock
+  validator panel, browse/share payloads, HTML payload via the
+  live-paper ports contract — no core fork) + `dashboard/` route
+  (`decision_dashboard()` verdict→badge-status rows + counts for
+  the Monday demo). Placeholder/503 contracts kept. Tests:
+  `tests/scitex_agentic_journal/_django/test__leaf.py` (10 tests).
 - M5 publish hand-off (#9 → PR #27): `_publish.publish_submission`,
   `_publish.LocalFilesystemLivePaperPort` (default in-process port that
   writes the Live Paper bundle envelope to

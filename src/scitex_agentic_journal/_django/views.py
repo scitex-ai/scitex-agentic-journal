@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from django.http import HttpRequest, JsonResponse
 
+from scitex_agentic_journal._django import _leaf
+
 
 def submissions_index(request: HttpRequest) -> JsonResponse:
     """List endpoint (placeholder).
@@ -76,3 +78,31 @@ def admin_panel(request: HttpRequest) -> JsonResponse:
             ),
         }
     )
+
+
+def archive_view(request: HttpRequest) -> JsonResponse:
+    """Leaf archive list — real FS read, placeholder when empty."""
+    return JsonResponse(_leaf.list_archive())
+
+
+def decision_dashboard_view(request: HttpRequest) -> JsonResponse:
+    """Leaf decision dashboard — verdict + badge rows for the Monday demo."""
+    return JsonResponse(_leaf.decision_dashboard())
+
+
+def validator_view(request: HttpRequest, submission_id: str) -> JsonResponse:
+    """Leaf validator panel — deterministic mock until M2 runs."""
+    return JsonResponse(_leaf.validator_mock_report(submission_id))
+
+
+def share_view(request: HttpRequest, submission_id: str) -> JsonResponse:
+    """Leaf browse+share — persistent id when minted, else submission id."""
+    payload = _leaf.share_record(submission_id)
+    if payload is None:
+        return JsonResponse({"submission_id": submission_id, "found": False}, status=404)
+    return JsonResponse(payload)
+
+
+def html_view(request: HttpRequest, persistent_id: str) -> JsonResponse:
+    """Leaf HTML-view payload — badge + ids for the live-paper renderer."""
+    return JsonResponse(_leaf.html_payload(persistent_id))
