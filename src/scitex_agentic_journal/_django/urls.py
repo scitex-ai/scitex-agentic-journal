@@ -16,6 +16,8 @@ app_name = "scitex_agentic_journal"
 
 urlpatterns = [
     path("", views.submissions_index, name="submissions-index"),
+    path("archive/", views.archive_view, name="archive"),
+    path("dashboard/", views.decision_dashboard_view, name="decision-dashboard"),
     path(
         "submissions/<str:submission_id>/",
         views.submission_detail,
@@ -31,5 +33,16 @@ urlpatterns = [
         views.decision_record_view,
         name="decision-record",
     ),
+    path(
+        "submissions/<str:submission_id>/validator/",
+        views.validator_view,
+        name="validator",
+    ),
+    path(
+        "submissions/<str:submission_id>/share/",
+        views.share_view,
+        name="share",
+    ),
+    path("papers/<str:persistent_id>/html/", views.html_view, name="paper-html"),
     path("admin/", views.admin_panel, name="admin-panel"),
 ]
