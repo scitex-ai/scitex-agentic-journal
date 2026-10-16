@@ -16,3 +16,7 @@ intransitive_verbs:
   # the canonical use). Mirrors what live-paper already ships
   # cross-package.
   - hub-manifest
+  # `scitex-agentic-journal review` runs a single reviewer-agent
+  # against a persisted submission (verb sense: "to review the
+  # submission"). Same escape hatch `next` uses.
+  - review
