@@ -1,0 +1,23 @@
+# Project-local scitex-dev configuration.
+audit:
+  exemptions:
+    PS-231:
+      # `workflow-duplication` — the rule says .github/workflows/cla.yml
+      # re-implements the org reusable `cla` and should call it instead.
+      #
+      # CONVERTING WOULD ORPHAN THE SIGNATURE LEDGER. The local workflow
+      # stores signatures in THIS repo's `cla-signatures` branch
+      # (signatures/cla.json) via contributor-assistant/github-action; the
+      # org reusable hardcodes the organization ledger at
+      # scitex-ai/.github@cla:signatures/cla.json. Switching ledgers would
+      # stop recognising every existing signature and re-prompt all
+      # contributors. The local copy tracks the org PAT rotation (it already
+      # uses secrets.GH_PERSONAL_ACCESS_TOKEN).
+      #
+      # REVISIT WHEN: the org reusable accepts a signatures-ledger input.
+      - path: .github/workflows/cla.yml
+        line: 0
+        reason: >-
+          Local CLA workflow keeps signatures in this repo's cla-signatures
+          branch; the org reusable hardcodes the scitex-ai/.github ledger,
+          so converting would orphan all existing signatures.
