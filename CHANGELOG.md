@@ -142,6 +142,14 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
   project URL.
 
 ### Fixed
+- M1.3 Clew-DAG check vs `scitex-clew` 0.21.0: verify via
+  `clew dag --claims --json` (the every-claim JSON entry point),
+  accept the current `.scitex/clew/` project marker (legacy `.clew/`
+  still accepted), and fail loud with an actionable
+  store-not-provisioned error when clew's PostgreSQL store is missing
+  instead of reporting unparseable output. Opt-in tests no longer call
+  the removed `clew init`; full-pass tests are gated on the new
+  `SCITEX_RUN_CLEW_STORE_TESTS=1` (provisioned store required).
 - CLI audit dict review-verb + AAA test style (#42).
 
 ## [0.1.0-alpha] — 2026-06-12

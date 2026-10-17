@@ -4,8 +4,9 @@ Mostly hermetic. The ORCID sub-check rejects malformed ids
 *before* any HTTP, so we can verify the failure-wrapping shape
 without network. One opt-in real end-to-end test exercises the
 full M1.1 + M1.2 + M1.3 happy path against `pub.orcid.org`,
-`github.com/octocat/Hello-World`, and a `clew init`-ed project —
-gated on `SCITEX_RUN_NETWORK_TESTS=1` and `SCITEX_RUN_CLEW_TESTS=1`.
+`github.com/octocat/Hello-World`, and a real clew-registered project —
+gated on `SCITEX_RUN_NETWORK_TESTS=1`, `SCITEX_RUN_CLEW_TESTS=1`, and
+`SCITEX_RUN_CLEW_STORE_TESTS=1` (a provisioned clew store).
 No mocks anywhere.
 """
 
@@ -106,34 +107,64 @@ def test_run_gate1_failure_message_renders_canonical_gate_1_fail_line(
 
 @pytest.fixture
 def real_clew_bundle(tmp_path: Path) -> Path:
-    """`clew init` a real bundle so the M1.3 step has work to do.
+    """Register a real bundle so the M1.3 step has work to do.
 
     Skips the dependent test when network + clew + git are not all
     present. We need ALL of: `SCITEX_RUN_NETWORK_TESTS=1` (for the
     ORCID and code-repo HTTP), `SCITEX_RUN_CLEW_TESTS=1` (for the
-    real `clew claim verify` subprocess), `clew` on PATH, and
-    `git` on PATH.
+    real clew subprocess), `SCITEX_RUN_CLEW_STORE_TESTS=1` (a
+    provisioned PostgreSQL clew store — verification needs it),
+    `clew` on PATH, and `git` on PATH.
     """
     if os.environ.get("SCITEX_RUN_NETWORK_TESTS") != "1":
         pytest.skip("opt in by setting SCITEX_RUN_NETWORK_TESTS=1")
     if os.environ.get("SCITEX_RUN_CLEW_TESTS") != "1":
         pytest.skip("opt in by setting SCITEX_RUN_CLEW_TESTS=1")
+    if os.environ.get("SCITEX_RUN_CLEW_STORE_TESTS") != "1":
+        pytest.skip("opt in by setting SCITEX_RUN_CLEW_STORE_TESTS=1")
     if shutil.which("clew") is None:
         pytest.skip("`clew` binary not on PATH")
     if shutil.which("git") is None:
         pytest.skip("`git` not on PATH")
     bundle = tmp_path / "bundle"
     bundle.mkdir()
+    (bundle / "paper.tex").write_text("The answer is 42\n", encoding="utf-8")
+    (bundle / "result.txt").write_text("value = 42\n", encoding="utf-8")
     import subprocess as _sp
 
-    _sp.run(["clew", "init"], cwd=str(bundle), check=True, capture_output=True)
+    _sp.run(
+        ["clew", "register-source", "result.txt"],
+        cwd=str(bundle),
+        check=True,
+        capture_output=True,
+    )
+    _sp.run(
+        [
+            "clew",
+            "claim",
+            "add",
+            "--file-path",
+            "paper.tex",
+            "--type",
+            "value",
+            "--value",
+            "42",
+            "--source-file",
+            "result.txt",
+            "--line-number",
+            "1",
+        ],
+        cwd=str(bundle),
+        check=True,
+        capture_output=True,
+    )
     return bundle
 
 
 def test_run_gate1_returns_gate1_verdict_for_real_passing_bundle(
     real_clew_bundle: Path,
 ) -> None:
-    """Real ORCID + real GitHub clone + real `clew claim verify`."""
+    """Real ORCID + real GitHub clone + real `clew dag --claims`."""
     # Arrange
     submission = _submission(real_clew_bundle)
     # Act

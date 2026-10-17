@@ -10,7 +10,9 @@ real CLI would produce — only the values are deterministic.
 
 One opt-in test exercises the **real** ``clew`` binary when the
 operator sets ``SCITEX_RUN_CLEW_TESTS=1`` (mirroring the existing
-``SCITEX_RUN_NETWORK_TESTS`` pattern from #11 / #13).
+``SCITEX_RUN_NETWORK_TESTS`` pattern from #11 / #13); the full-pass
+test additionally needs ``SCITEX_RUN_CLEW_STORE_TESTS=1`` (a
+provisioned PostgreSQL clew store).
 """
 
 from __future__ import annotations
@@ -47,12 +49,14 @@ def _write_clew_shim(
     tmp_path: Path,
     *,
     stdout_payload: str,
+    stderr_payload: str = "",
     exit_code: int = 0,
     sleep_s: float = 0.0,
 ) -> Path:
-    """Write an executable Python script behaving like ``clew claim verify``.
+    """Write an executable Python script behaving like ``clew dag``.
 
-    The shim ignores its argv and unconditionally emits ``stdout_payload``
+    The shim records its argv as JSON to ``tmp_path/clew.argv``,
+    unconditionally emits ``stdout_payload`` / ``stderr_payload``,
     then exits with ``exit_code``. Set ``sleep_s`` > 0 to exercise the
     timeout branch via a real ``time.sleep``.
     """
@@ -60,16 +64,23 @@ def _write_clew_shim(
     body = textwrap.dedent(
         f"""\
         #!/usr/bin/env python3
-        import sys, time
+        import sys, time, json
         if {sleep_s!r} > 0:
             time.sleep({sleep_s!r})
+        open(sys.argv[0] + ".argv", "w").write(json.dumps(sys.argv[1:]))
         sys.stdout.write({stdout_payload!r})
+        sys.stderr.write({stderr_payload!r})
         sys.exit({exit_code!r})
         """
     )
     shim.write_text(body)
     shim.chmod(shim.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
     return shim
+
+
+def _shim_argv(tmp_path: Path) -> list:
+    """Read back the argv the shim recorded during the gate run."""
+    return json.loads((tmp_path / "clew.argv").read_text(encoding="utf-8"))
 
 
 def _make_clew_project(root: Path) -> Path:
@@ -294,6 +305,116 @@ def test_parse_verification_payload_raises_gate_failure_on_non_object_entry() ->
 # ---------------------------------------------------------------------------
 
 
+def test_verify_clew_dag_invokes_dag_claims_json(tmp_path: Path) -> None:
+    # Arrange
+    bundle = _make_clew_project(tmp_path / "bundle")
+    shim = _write_clew_shim(
+        tmp_path,
+        stdout_payload=json.dumps(
+            {
+                "target_files": [],
+                "status": "verified",
+                "is_verified": True,
+                "num_runs": 1,
+                "num_edges": 0,
+                "topological_order": [],
+                "runs": [{"session_id": "s1", "is_verified": True}],
+                "edges": [],
+            }
+        ),
+    )
+    # Act
+    verify_clew_dag(bundle, clew_bin=str(shim))
+    # Assert
+    assert _shim_argv(tmp_path) == ["dag", "--claims", "--json"]
+
+
+def test_verify_clew_dag_passes_on_dag_shape_with_verified_run(
+    tmp_path: Path,
+) -> None:
+    # Arrange
+    bundle = _make_clew_project(tmp_path / "bundle")
+    shim = _write_clew_shim(
+        tmp_path,
+        stdout_payload=json.dumps(
+            {
+                "status": "verified",
+                "is_verified": True,
+                "runs": [
+                    {"session_id": "s1", "is_verified": True},
+                    {"session_id": "s2", "is_verified": False},
+                ],
+            }
+        ),
+    )
+    # Act
+    result = verify_clew_dag(bundle, clew_bin=str(shim))
+    # Assert
+    assert result.green_claims == ("s1",)
+    assert result.red_claims == ("s2",)
+    assert result.total_claims == 2
+
+
+def test_verify_clew_dag_raises_actionable_failure_on_unprovisioned_store(
+    tmp_path: Path,
+) -> None:
+    # Arrange
+    bundle = _make_clew_project(tmp_path / "bundle")
+    shim = _write_clew_shim(
+        tmp_path,
+        stdout_payload="",
+        stderr_payload=(
+            "Traceback (most recent call last):\n"
+            "scitex_dev.store._errors.StoreProvisionError: Store 'claims' "
+            "needs PostgreSQL DDL ... Run provision_store_acl(target, "
+            "schema) through the authorized migration identity, then retry "
+            "Store().\n"
+        ),
+        exit_code=1,
+    )
+    # Act
+    captured: GateFailure | None = None
+    try:
+        verify_clew_dag(bundle, clew_bin=str(shim))
+    except GateFailure as f:
+        captured = f
+    # Assert
+    assert captured is not None and captured.check == "clew_dag"
+    assert captured.reason == "clew store not provisioned for this project"
+
+
+def test_parse_verification_payload_accepts_dag_runs_shape() -> None:
+    # Arrange
+    payload = json.dumps(
+        {
+            "status": "verified",
+            "is_verified": True,
+            "runs": [
+                {"session_id": "s1", "is_verified": True},
+                {"session_id": "s2", "is_verified": False},
+                {"session_id": "s3"},
+            ],
+        }
+    )
+    # Act
+    green, red = _parse_verification_payload(payload)
+    # Assert
+    assert green == ("s1",)
+    assert red == ("s2", "s3")
+
+
+def test_find_clew_project_dir_returns_root_for_state_dir(
+    tmp_path: Path,
+) -> None:
+    # Arrange
+    root = tmp_path / "bundle"
+    (root / ".scitex" / "clew").mkdir(parents=True)
+    # Act
+    found = _find_clew_project_dir(root)
+    # Assert
+    assert found == root
+
+
 def test_verify_clew_dag_returns_verification_when_at_least_one_claim_green(
     tmp_path: Path,
 ) -> None:
@@ -516,7 +637,13 @@ def test_verify_clew_dag_raises_gate_failure_when_no_clew_project_in_bundle(
 
 @pytest.fixture
 def real_clew_project(tmp_path: Path) -> Path:
-    """Initialise a real Clew project via the actual `clew init` CLI.
+    """Register a real Clew project via the actual 0.21.0 CLI.
+
+    ``clew register-source`` writes the current ``.scitex/clew/``
+    state dir without needing the PostgreSQL store, so the marker
+    half works everywhere ``clew`` is installed. Anything that
+    verifies (``dag`` / ``claim``) still needs a provisioned store —
+    see ``SCITEX_RUN_CLEW_STORE_TESTS`` below.
 
     Skips the dependent test when `clew` is not on PATH OR when the
     opt-in env var ``SCITEX_RUN_CLEW_TESTS=1`` is not set. Mirrors the
@@ -528,21 +655,91 @@ def real_clew_project(tmp_path: Path) -> Path:
         pytest.skip("`clew` binary not on PATH")
     bundle = tmp_path / "bundle"
     bundle.mkdir()
+    (bundle / "result.txt").write_text("value = 42\n", encoding="utf-8")
     import subprocess as _sp
 
-    _sp.run(["clew", "init"], cwd=str(bundle), check=True, capture_output=True)
+    _sp.run(
+        ["clew", "register-source", "result.txt"],
+        cwd=str(bundle),
+        check=True,
+        capture_output=True,
+    )
     return bundle
 
 
-def test_real_clew_binary_verifies_a_freshly_initialised_project(
+def test_real_clew_binary_fails_loud_on_unprovisioned_store(
     real_clew_project: Path,
 ) -> None:
-    """Real-CLI smoke — verify_clew_dag returns a ClewVerification with
-    at least one green claim when run against a real `clew`-initialised
-    project. Skipped unless the operator opts in (see fixture).
+    """Real-CLI smoke — the gate names the store, not the JSON.
+
+    A freshly registered project has no provisioned store, so the
+    real ``clew dag`` dies with ``StoreProvisionError`` instead of
+    JSON. The gate must surface that cause actionably rather than
+    reporting unparseable output. Skipped unless the operator opts
+    in (see fixture).
     """
     # Arrange
     bundle = real_clew_project
+    # Act
+    captured: GateFailure | None = None
+    try:
+        verify_clew_dag(bundle)
+    except GateFailure as f:
+        captured = f
+    # Assert
+    assert captured is not None and captured.check == "clew_dag"
+    assert captured.reason == "clew store not provisioned for this project"
+
+
+def test_real_clew_binary_verifies_a_provisioned_project(
+    tmp_path: Path,
+) -> None:
+    """Full pass — real register + claim + verify against a live store.
+
+    Needs ALL of: ``SCITEX_RUN_CLEW_STORE_TESTS=1`` (a provisioned
+    PostgreSQL clew store reachable from this environment),
+    ``clew`` on PATH, ``git`` on PATH. The store var — not
+    ``SCITEX_RUN_CLEW_TESTS`` — is the opt-in: setting it asserts a
+    provisioned store exists.
+    """
+    if os.environ.get("SCITEX_RUN_CLEW_STORE_TESTS") != "1":
+        pytest.skip("opt in by setting SCITEX_RUN_CLEW_STORE_TESTS=1")
+    if shutil.which("clew") is None:
+        pytest.skip("`clew` binary not on PATH")
+    if shutil.which("git") is None:
+        pytest.skip("`git` not on PATH")
+    import subprocess as _sp
+
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    (bundle / "paper.tex").write_text("The answer is 42\n", encoding="utf-8")
+    (bundle / "result.txt").write_text("value = 42\n", encoding="utf-8")
+    _sp.run(
+        ["clew", "register-source", "result.txt"],
+        cwd=str(bundle),
+        check=True,
+        capture_output=True,
+    )
+    _sp.run(
+        [
+            "clew",
+            "claim",
+            "add",
+            "--file-path",
+            "paper.tex",
+            "--type",
+            "value",
+            "--value",
+            "42",
+            "--source-file",
+            "result.txt",
+            "--line-number",
+            "1",
+        ],
+        cwd=str(bundle),
+        check=True,
+        capture_output=True,
+    )
     # Act
     result = verify_clew_dag(bundle)
     # Assert
