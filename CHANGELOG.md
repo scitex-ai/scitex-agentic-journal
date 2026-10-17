@@ -148,8 +148,10 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
   still accepted), and fail loud with an actionable
   store-not-provisioned error when clew's PostgreSQL store is missing
   instead of reporting unparseable output. Opt-in tests no longer call
-  the removed `clew init`; full-pass tests are gated on the new
-  `SCITEX_RUN_CLEW_STORE_TESTS=1` (provisioned store required).
+  the removed `clew init`; full-pass fixtures run a real
+  `clew.session()` step so a tracked run produces the claimed source,
+  and are gated on the new `SCITEX_RUN_CLEW_STORE_TESTS=1`
+  (provisioned store required).
 - CLI audit dict review-verb + AAA test style (#42).
 
 ## [0.1.0-alpha] — 2026-06-12

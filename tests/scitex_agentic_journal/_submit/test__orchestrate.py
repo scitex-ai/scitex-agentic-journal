@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
@@ -126,12 +127,30 @@ def real_clew_bundle(tmp_path: Path) -> Path:
         pytest.skip("`clew` binary not on PATH")
     if shutil.which("git") is None:
         pytest.skip("`git` not on PATH")
+    try:
+        import scitex_clew  # noqa: F401
+    except ImportError:
+        pytest.skip("scitex_clew python package not importable")
     bundle = tmp_path / "bundle"
     bundle.mkdir()
     (bundle / "paper.tex").write_text("The answer is 42\n", encoding="utf-8")
-    (bundle / "result.txt").write_text("value = 42\n", encoding="utf-8")
+    (bundle / "make_result.py").write_text(
+        "import scitex_clew as clew\n"
+        'with clew.session(script_path="make_result.py") as run:\n'
+        '    run.record_input("paper.tex")\n'
+        '    with open("result.txt", "w") as fh:\n'
+        '        fh.write("value = 42\\n")\n'
+        '    run.record_output("result.txt")\n',
+        encoding="utf-8",
+    )
     import subprocess as _sp
 
+    _sp.run(
+        [sys.executable, "make_result.py"],
+        cwd=str(bundle),
+        check=True,
+        capture_output=True,
+    )
     _sp.run(
         ["clew", "register-source", "result.txt"],
         cwd=str(bundle),
