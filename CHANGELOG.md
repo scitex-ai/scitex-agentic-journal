@@ -5,6 +5,11 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
 ## [Unreleased]
 
 ### Added
+- Demo `docs/demo/monday-mock.html` (#44): single-file zero-dependency
+  visual mock of the submit → Clew gate → AI review + DOI → Live Paper
+  publish loop (ticket review, repo-per-paper, Clew hover graph).
+  Visual only — no package code touched.
+- Canonical CI caller + tag-driven release caller workflows (#43).
 - Leaf `_django` demo surface (aj-leaf-django): `_django/_leaf.py`
   (Django-free helpers: real-FS archive list, deterministic mock
   validator panel, browse/share payloads, HTML payload via the
@@ -135,6 +140,9 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
   `peer-review`, `reproducibility`), extra classifiers
   (`Framework :: Django`, information analysis, LaTeX), and a `Changelog`
   project URL.
+
+### Fixed
+- CLI audit dict review-verb + AAA test style (#42).
 
 ## [0.1.0-alpha] — 2026-06-12
 
