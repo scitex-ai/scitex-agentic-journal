@@ -329,6 +329,17 @@ def test_verify_clew_dag_invokes_dag_claims_json(tmp_path: Path) -> None:
     assert _shim_argv(tmp_path) == ["dag", "--claims", "--json"]
 
 
+def _dag_runs_payload(runs: list[dict]) -> str:
+    """Minimal ``clew dag --claims --json`` stdout for the given runs."""
+    return json.dumps(
+        {
+            "status": "verified",
+            "is_verified": True,
+            "runs": runs,
+        }
+    )
+
+
 def test_verify_clew_dag_passes_on_dag_shape_with_verified_run(
     tmp_path: Path,
 ) -> None:
@@ -336,31 +347,62 @@ def test_verify_clew_dag_passes_on_dag_shape_with_verified_run(
     bundle = _make_clew_project(tmp_path / "bundle")
     shim = _write_clew_shim(
         tmp_path,
-        stdout_payload=json.dumps(
-            {
-                "status": "verified",
-                "is_verified": True,
-                "runs": [
-                    {"session_id": "s1", "is_verified": True},
-                    {"session_id": "s2", "is_verified": False},
-                ],
-            }
+        stdout_payload=_dag_runs_payload(
+            [
+                {"session_id": "s1", "is_verified": True},
+                {"session_id": "s2", "is_verified": False},
+            ]
         ),
     )
     # Act
     result = verify_clew_dag(bundle, clew_bin=str(shim))
     # Assert
     assert result.green_claims == ("s1",)
-    assert result.red_claims == ("s2",)
-    assert result.total_claims == 2
 
 
-def test_verify_clew_dag_raises_actionable_failure_on_unprovisioned_store(
+def test_verify_clew_dag_records_unverified_runs_as_red(
     tmp_path: Path,
 ) -> None:
     # Arrange
     bundle = _make_clew_project(tmp_path / "bundle")
     shim = _write_clew_shim(
+        tmp_path,
+        stdout_payload=_dag_runs_payload(
+            [
+                {"session_id": "s1", "is_verified": True},
+                {"session_id": "s2", "is_verified": False},
+            ]
+        ),
+    )
+    # Act
+    result = verify_clew_dag(bundle, clew_bin=str(shim))
+    # Assert
+    assert result.red_claims == ("s2",)
+
+
+def test_verify_clew_dag_counts_total_runs(
+    tmp_path: Path,
+) -> None:
+    # Arrange
+    bundle = _make_clew_project(tmp_path / "bundle")
+    shim = _write_clew_shim(
+        tmp_path,
+        stdout_payload=_dag_runs_payload(
+            [
+                {"session_id": "s1", "is_verified": True},
+                {"session_id": "s2", "is_verified": False},
+            ]
+        ),
+    )
+    # Act
+    result = verify_clew_dag(bundle, clew_bin=str(shim))
+    # Assert
+    assert result.total_claims == 2
+
+
+def _unprovisioned_store_shim(tmp_path: Path) -> Path:
+    """Shim mimicking a clew that dies with ``StoreProvisionError``."""
+    return _write_clew_shim(
         tmp_path,
         stdout_payload="",
         stderr_payload=(
@@ -372,34 +414,70 @@ def test_verify_clew_dag_raises_actionable_failure_on_unprovisioned_store(
         ),
         exit_code=1,
     )
-    # Act
-    captured: GateFailure | None = None
+
+
+def _run_gate1_dag_check(bundle: Path, clew_bin: Path | str) -> GateFailure | None:
+    """Run the gate against the binary; return the caught failure (or None)."""
     try:
-        verify_clew_dag(bundle, clew_bin=str(shim))
+        verify_clew_dag(bundle, clew_bin=str(clew_bin))
     except GateFailure as f:
-        captured = f
+        return f
+    return None
+
+
+def test_verify_clew_dag_store_failure_check_is_clew_dag(
+    tmp_path: Path,
+) -> None:
+    # Arrange
+    bundle = _make_clew_project(tmp_path / "bundle")
+    shim = _unprovisioned_store_shim(tmp_path)
+    # Act
+    captured = _run_gate1_dag_check(bundle, shim)
     # Assert
     assert captured is not None and captured.check == "clew_dag"
-    assert captured.reason == "clew store not provisioned for this project"
+
+
+def test_verify_clew_dag_store_failure_names_provisioning(
+    tmp_path: Path,
+) -> None:
+    # Arrange
+    bundle = _make_clew_project(tmp_path / "bundle")
+    shim = _unprovisioned_store_shim(tmp_path)
+    # Act
+    captured = _run_gate1_dag_check(bundle, shim)
+    # Assert
+    assert captured is not None and (
+        captured.reason == "clew store not provisioned for this project"
+    )
 
 
 def test_parse_verification_payload_accepts_dag_runs_shape() -> None:
     # Arrange
-    payload = json.dumps(
-        {
-            "status": "verified",
-            "is_verified": True,
-            "runs": [
-                {"session_id": "s1", "is_verified": True},
-                {"session_id": "s2", "is_verified": False},
-                {"session_id": "s3"},
-            ],
-        }
+    payload = _dag_runs_payload(
+        [
+            {"session_id": "s1", "is_verified": True},
+            {"session_id": "s2", "is_verified": False},
+            {"session_id": "s3"},
+        ]
     )
     # Act
-    green, red = _parse_verification_payload(payload)
+    green, _ = _parse_verification_payload(payload)
     # Assert
     assert green == ("s1",)
+
+
+def test_parse_verification_payload_buckets_unverified_runs_red() -> None:
+    # Arrange
+    payload = _dag_runs_payload(
+        [
+            {"session_id": "s1", "is_verified": True},
+            {"session_id": "s2", "is_verified": False},
+            {"session_id": "s3"},
+        ]
+    )
+    # Act
+    _, red = _parse_verification_payload(payload)
+    # Assert
     assert red == ("s2", "s3")
 
 
@@ -667,40 +745,39 @@ def real_clew_project(tmp_path: Path) -> Path:
     return bundle
 
 
-def test_real_clew_binary_fails_loud_on_unprovisioned_store(
+def test_real_clew_binary_store_failure_check_is_clew_dag(
     real_clew_project: Path,
 ) -> None:
-    """Real-CLI smoke — the gate names the store, not the JSON.
-
-    A freshly registered project has no provisioned store, so the
-    real ``clew dag`` dies with ``StoreProvisionError`` instead of
-    JSON. The gate must surface that cause actionably rather than
-    reporting unparseable output. Skipped unless the operator opts
-    in (see fixture).
-    """
     # Arrange
     bundle = real_clew_project
     # Act
-    captured: GateFailure | None = None
-    try:
-        verify_clew_dag(bundle)
-    except GateFailure as f:
-        captured = f
+    captured = _run_gate1_dag_check(bundle, shutil.which("clew") or "clew")
     # Assert
     assert captured is not None and captured.check == "clew_dag"
-    assert captured.reason == "clew store not provisioned for this project"
 
 
-def test_real_clew_binary_verifies_a_provisioned_project(
-    tmp_path: Path,
+def test_real_clew_binary_store_failure_names_provisioning(
+    real_clew_project: Path,
 ) -> None:
-    """Full pass — real register + claim + verify against a live store.
+    # Arrange
+    bundle = real_clew_project
+    # Act
+    captured = _run_gate1_dag_check(bundle, shutil.which("clew") or "clew")
+    # Assert
+    assert captured is not None and (
+        captured.reason == "clew store not provisioned for this project"
+    )
 
-    Needs ALL of: ``SCITEX_RUN_CLEW_STORE_TESTS=1`` (a provisioned
-    PostgreSQL clew store reachable from this environment),
-    ``clew`` on PATH, ``git`` on PATH. The store var — not
-    ``SCITEX_RUN_CLEW_TESTS`` — is the opt-in: setting it asserts a
-    provisioned store exists.
+
+@pytest.fixture
+def provisioned_clew_bundle(tmp_path: Path) -> Path:
+    """Build a fully registered bundle against a live provisioned store.
+
+    Gating lives here (not in the test body) per the repo's AAA
+    convention — ``pytest.skip`` counts as an assertion construct
+    (STX-TQ007), so skips belong in fixtures. Setting
+    ``SCITEX_RUN_CLEW_STORE_TESTS=1`` declares a provisioned
+    PostgreSQL clew store reachable from this environment.
     """
     if os.environ.get("SCITEX_RUN_CLEW_STORE_TESTS") != "1":
         pytest.skip("opt in by setting SCITEX_RUN_CLEW_STORE_TESTS=1")
@@ -740,6 +817,15 @@ def test_real_clew_binary_verifies_a_provisioned_project(
         check=True,
         capture_output=True,
     )
+    return bundle
+
+
+def test_real_clew_binary_verifies_a_provisioned_project(
+    provisioned_clew_bundle: Path,
+) -> None:
+    """Full pass — real register + claim + verify against a live store."""
+    # Arrange
+    bundle = provisioned_clew_bundle
     # Act
     result = verify_clew_dag(bundle)
     # Assert
