@@ -21,6 +21,7 @@ import json
 import os
 import shutil
 import stat
+import sys
 import textwrap
 from pathlib import Path
 
@@ -745,33 +746,67 @@ def real_clew_project(tmp_path: Path) -> Path:
     return bundle
 
 
-def test_real_clew_binary_store_failure_check_is_clew_dag(
+def test_real_clew_project_marker_is_discoverable(
     real_clew_project: Path,
 ) -> None:
+    """A real `clew register-source` project is found by the locator."""
     # Arrange
     bundle = real_clew_project
     # Act
-    captured = _run_gate1_dag_check(bundle, shutil.which("clew") or "clew")
+    found = _find_clew_project_dir(bundle)
     # Assert
-    assert captured is not None and captured.check == "clew_dag"
+    assert found == bundle
 
 
-def test_real_clew_binary_store_failure_names_provisioning(
-    real_clew_project: Path,
+@pytest.fixture
+def registered_only_bundle(tmp_path: Path) -> Path:
+    """Register-only bundle: marker present, zero claims, needs the store.
+
+    The ``dag`` half needs a provisioned store, so this is gated on
+    ``SCITEX_RUN_CLEW_STORE_TESTS=1`` like the other verifying
+    fixtures. With no claims registered, the gate must fail loud on
+    the empty DAG — never pass, never silently empty.
+    """
+    if os.environ.get("SCITEX_RUN_CLEW_STORE_TESTS") != "1":
+        pytest.skip("opt in by setting SCITEX_RUN_CLEW_STORE_TESTS=1")
+    if shutil.which("clew") is None:
+        pytest.skip("`clew` binary not on PATH")
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    (bundle / "result.txt").write_text("value = 42\n", encoding="utf-8")
+    import subprocess as _sp
+
+    _sp.run(
+        ["clew", "register-source", "result.txt"],
+        cwd=str(bundle),
+        check=True,
+        capture_output=True,
+    )
+    return bundle
+
+
+def test_real_clew_binary_zero_runs_fails_loud(
+    registered_only_bundle: Path,
 ) -> None:
+    """A registered-but-claimless project fails on the empty DAG."""
     # Arrange
-    bundle = real_clew_project
+    bundle = registered_only_bundle
     # Act
     captured = _run_gate1_dag_check(bundle, shutil.which("clew") or "clew")
     # Assert
     assert captured is not None and (
-        captured.reason == "clew store not provisioned for this project"
+        captured.reason == "Clew DAG present but verifies zero claims"
     )
 
 
 @pytest.fixture
 def provisioned_clew_bundle(tmp_path: Path) -> Path:
-    """Build a fully registered bundle against a live provisioned store.
+    """Build a fully tracked bundle against a live provisioned store.
+
+    Runs a real ``clew.session()`` step that produces ``result.txt``
+    with input→output edges, then registers the source and the claim
+    — so the DAG has a tracked run producing the claimed source
+    instead of a claim-only bundle nothing computed.
 
     Gating lives here (not in the test body) per the repo's AAA
     convention — ``pytest.skip`` counts as an assertion construct
@@ -785,12 +820,30 @@ def provisioned_clew_bundle(tmp_path: Path) -> Path:
         pytest.skip("`clew` binary not on PATH")
     if shutil.which("git") is None:
         pytest.skip("`git` not on PATH")
+    try:
+        import scitex_clew  # noqa: F401
+    except ImportError:
+        pytest.skip("scitex_clew python package not importable")
     import subprocess as _sp
 
     bundle = tmp_path / "bundle"
     bundle.mkdir()
     (bundle / "paper.tex").write_text("The answer is 42\n", encoding="utf-8")
-    (bundle / "result.txt").write_text("value = 42\n", encoding="utf-8")
+    (bundle / "make_result.py").write_text(
+        "import scitex_clew as clew\n"
+        'with clew.session(script_path="make_result.py") as run:\n'
+        '    run.record_input("paper.tex")\n'
+        '    with open("result.txt", "w") as fh:\n'
+        '        fh.write("value = 42\\n")\n'
+        '    run.record_output("result.txt")\n',
+        encoding="utf-8",
+    )
+    _sp.run(
+        [sys.executable, "make_result.py"],
+        cwd=str(bundle),
+        check=True,
+        capture_output=True,
+    )
     _sp.run(
         ["clew", "register-source", "result.txt"],
         cwd=str(bundle),
