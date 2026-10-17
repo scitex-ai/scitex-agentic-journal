@@ -154,6 +154,9 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
   (provisioned store required). The unprovisioned-premise store test
   runs only where the store is not provisioned (lead decision (a)) —
   where `STORE_TESTS` is set its premise cannot occur, so it skips.
+  Full-pass fixtures pin the run (`session_id` into `clew.session`),
+  link it explicitly (`--source-session` + stable `--claim-id`), and
+  validate the seed with per-claim `verify` before the gate runs.
 - CLI audit dict review-verb + AAA test style (#42).
 
 ## [0.1.0-alpha] — 2026-06-12
