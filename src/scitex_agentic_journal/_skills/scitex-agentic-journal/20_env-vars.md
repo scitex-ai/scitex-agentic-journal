@@ -30,8 +30,8 @@ the tests under `tests/`.
 | Variable | Used by | Effect |
 |---|---|---|
 | `SCITEX_RUN_NETWORK_TESTS=1` | `tests/scitex_agentic_journal/_gate1/test__orcid.py`, `test__code_repo.py` | Enables the test that resolves a real `pub.orcid.org` ORCID record and the test that clones a real GitHub repo. Skipped by default. |
-| `SCITEX_RUN_CLEW_TESTS=1` | `tests/scitex_agentic_journal/_gate1/test__clew_dag.py` | Enables the test that runs the real `clew dag --claims` CLI against a freshly `clew register-source`-ed bundle (asserts the loud unprovisioned-store failure). Skipped by default unless `clew` is also on PATH. |
-| `SCITEX_RUN_CLEW_STORE_TESTS=1` | `test__clew_dag.py`, `test__orchestrate.py`, `test__submit.py` | Enables the full-pass tests that register + verify against a live provisioned PostgreSQL clew store. Skipped by default. |
+| `SCITEX_RUN_CLEW_TESTS=1` | `tests/scitex_agentic_journal/_gate1/test__clew_dag.py` | Enables the real-binary tests that need `clew` but no store: marker discoverability on a freshly `clew register-source`-ed bundle, plus the unprovisioned-premise store-failure test (skipped where the store is provisioned). Skipped by default unless `clew` is also on PATH. |
+| `SCITEX_RUN_CLEW_STORE_TESTS=1` | `test__clew_dag.py`, `test__orchestrate.py`, `test__submit.py` | Enables the full-pass tests that register + verify against a live provisioned PostgreSQL clew store. Skipped by default. Where set, the unprovisioned-premise test (`test_real_clew_binary_store_failure_names_provisioning`, lead decision (a)) skips instead — its premise cannot occur there. |
 
 ## Audit-rule provenance
 

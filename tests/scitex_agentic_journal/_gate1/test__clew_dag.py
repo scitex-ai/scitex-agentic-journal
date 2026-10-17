@@ -759,6 +759,40 @@ def test_real_clew_project_marker_is_discoverable(
 
 
 @pytest.fixture
+def unprovisioned_clew_project(real_clew_project: Path) -> Path:
+    """``real_clew_project``, but only where the store is NOT provisioned.
+
+    Lead decision (a): where ``SCITEX_RUN_CLEW_STORE_TESTS=1`` the
+    store is provisioned, so the unprovisioned premise cannot occur —
+    accepting either reason there would weaken the assertion. The
+    skip lives here (not in the test body) per STX-TQ007.
+    """
+    if os.environ.get("SCITEX_RUN_CLEW_STORE_TESTS") == "1":
+        pytest.skip("provisioned store: unprovisioned premise cannot occur")
+    return real_clew_project
+
+
+def test_real_clew_binary_store_failure_names_provisioning(
+    unprovisioned_clew_project: Path,
+) -> None:
+    """Unprovisioned-only: the gate names the store, not the JSON.
+
+    A freshly registered project has no provisioned store, so the
+    real ``clew dag`` dies with ``StoreProvisionError`` instead of
+    JSON. The gate must surface that cause actionably rather than
+    reporting unparseable output.
+    """
+    # Arrange
+    bundle = unprovisioned_clew_project
+    # Act
+    captured = _run_gate1_dag_check(bundle, shutil.which("clew") or "clew")
+    # Assert
+    assert captured is not None and (
+        captured.reason == "clew store not provisioned for this project"
+    )
+
+
+@pytest.fixture
 def registered_only_bundle(tmp_path: Path) -> Path:
     """Register-only bundle: marker present, zero claims, needs the store.
 
