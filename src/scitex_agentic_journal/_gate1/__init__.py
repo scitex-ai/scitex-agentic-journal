@@ -17,6 +17,8 @@ checks together; that wiring is tracked separately under issue #5 (M1 CLI).
 
 from scitex_agentic_journal._gate1._clew_dag import (
     CLEW_MARKER_DIR,
+    CLEW_MARKER_DIRS,
+    CLEW_STATE_DIR,
     DEFAULT_VERIFY_TIMEOUT_S,
     ClewVerification,
     verify_clew_dag,
@@ -37,6 +39,8 @@ from scitex_agentic_journal._gate1._orcid import (
 
 __all__ = [
     "CLEW_MARKER_DIR",
+    "CLEW_MARKER_DIRS",
+    "CLEW_STATE_DIR",
     "ClewVerification",
     "ClonedRepo",
     "DEFAULT_CLONE_DEPTH",

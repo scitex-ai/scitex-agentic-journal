@@ -3,12 +3,12 @@
 This module implements :func:`verify_clew_dag`, which:
 
 1. Locates a Clew project directory inside the submission bundle.
-2. Shells out to the real ``clew claim verify`` CLI (no mocks, no
+2. Shells out to the real ``clew dag --claims --json`` CLI (no mocks, no
    embedded re-implementation of Clew's DAG semantics).
 3. Returns a structured :class:`ClewVerification` summarising green
-   and red claims.
+   and red runs.
 4. Raises :class:`GateFailure` when the bundle has no Clew project,
-   no claims at all, or every claim is red — the conditions under
+   the DAG covers zero runs, or every run is red — the conditions under
    which the submission cannot proceed to AI review.
 
 The dependency direction is strict: we *consume* ``scitex-clew``'s
@@ -16,22 +16,26 @@ verification result. We do not redefine ``VerificationStatus`` and
 we do not parse Clew's internal DAG format ourselves — the CLI is
 the contract.
 
+Targeted CLI surface: ``scitex-clew`` 0.21.0. The project marker is
+``.scitex/clew/`` (what ``clew register-source`` writes); the legacy
+``.clew/`` marker is still accepted. The every-claim JSON entry point
+is ``clew dag --claims --json``; the legacy bare-list payload shape
+(``[{\"id\": ..., \"status\": ...}]``) is still parsed so older
+installs keep working.
+
 Acceptance — issue #4 (M1.3):
 
 - "Locate the Clew project directory inside the submission bundle."
-  → :func:`_find_clew_project_dir` walks the bundle root looking
-  for the ``.clew/`` marker that ``clew init`` writes.
-- "Invoke ``clew claim verify`` (real subprocess) and assert at
-  least one claim returns green." → :func:`_run_clew_claim_verify`.
+  → :func:`_find_clew_project_dir` looks for the current
+  ``.scitex/clew/`` marker (or the legacy ``.clew/`` marker) at the
+  bundle root or one level down.
+- "Invoke the every-claim verify entry point (real subprocess) and
+  assert at least one run returns verified." → :func:`_run_clew_dag_verify`
+  runs ``clew dag --claims --json``.
 - "Return a structured ``GateFailure`` listing the failing claims
   if all are red." → :func:`verify_clew_dag` raises
-  ``GateFailure("clew_dag", ...)`` enumerating red claim ids in
-  ``detail``.
-
-The CLI invocation prefers JSON output (``--json``) when the
-installed ``clew`` supports it. We fall back to a permissive text
-parser for older builds so that an out-of-date local install does
-not silently red-bar a submission.
+  ``GateFailure("clew_dag", ...)`` enumerating non-verified run
+  session ids in ``detail``.
 """
 
 from __future__ import annotations
@@ -49,21 +53,29 @@ DEFAULT_VERIFY_TIMEOUT_S: Final[float] = 120.0
 """Hard ceiling for ``clew claim verify`` — the gate must not hang."""
 
 CLEW_MARKER_DIR: Final[str] = ".clew"
-"""``clew init`` writes its project metadata into ``<root>/.clew/``."""
+"""Legacy marker: ``clew init`` wrote project metadata here. Still accepted."""
+
+CLEW_STATE_DIR: Final[str] = ".scitex/clew"
+"""Current marker (``scitex-clew`` 0.21.0): ``clew register-source`` writes
+project state under ``<root>/.scitex/clew/``."""
+
+CLEW_MARKER_DIRS: Final[tuple[str, ...]] = (CLEW_STATE_DIR, CLEW_MARKER_DIR)
+"""Marker candidates, current first. Either one marks a Clew project."""
 
 
 @dataclass(frozen=True)
 class ClewVerification:
-    """The structured outcome of running ``clew claim verify``.
+    """The structured outcome of running ``clew dag --claims``.
 
     Attributes
     ----------
     project_dir :
         Absolute path to the Clew project root we ran against.
     green_claims :
-        Ordered list of claim ids that returned green.
+        Ordered list of verified run session ids (``scitex-clew``
+        0.21.0 ``dag`` shape; claim ids on legacy installs).
     red_claims :
-        Ordered list of claim ids that returned non-green.
+        Ordered list of non-verified run session ids.
     total_claims :
         ``len(green_claims) + len(red_claims)``. Stored explicitly so
         downstream callers do not need to recompute it.
@@ -78,8 +90,13 @@ class ClewVerification:
     raw_stdout: str = ""
 
 
+def _has_marker(candidate: Path) -> bool:
+    """True when ``candidate`` carries any known Clew project marker."""
+    return any((candidate / marker).is_dir() for marker in CLEW_MARKER_DIRS)
+
+
 def _find_clew_project_dir(bundle_root: Path) -> Path:
-    """Return the directory containing the ``.clew/`` marker.
+    """Return the directory containing a Clew project marker.
 
     Search order:
 
@@ -102,18 +119,19 @@ def _find_clew_project_dir(bundle_root: Path) -> Path:
             "submission bundle root is not a directory",
             f"path: {bundle_root}",
         )
-    if (bundle_root / CLEW_MARKER_DIR).is_dir():
+    if _has_marker(bundle_root):
         return bundle_root
     for child in sorted(bundle_root.iterdir()):
-        if child.is_dir() and (child / CLEW_MARKER_DIR).is_dir():
+        if child.is_dir() and _has_marker(child):
             return child
     raise GateFailure(
         "clew_dag",
         "no Clew project found in submission bundle",
         (
             f"searched {bundle_root} and immediate children for "
-            f"`{CLEW_MARKER_DIR}/`; none matched. Run `clew init` inside "
-            "your project before submission."
+            f"`{CLEW_STATE_DIR}/` (or legacy `{CLEW_MARKER_DIR}/`); none "
+            "matched. Register the project (e.g. `clew register-source`) "
+            "before submission."
         ),
     )
 
@@ -142,14 +160,26 @@ def _resolve_clew_binary(explicit: str | None) -> str:
     return path
 
 
-def _run_clew_claim_verify(
+_STORE_PROVISION_MARKERS: Final[tuple[str, ...]] = (
+    "StoreProvisionError",
+    "provision_store_acl",
+)
+"""stderr fragments proving the clew store is not provisioned.
+
+``clew dag`` needs its PostgreSQL tables; when the store was never
+provisioned the CLI dies with a traceback instead of JSON. Matching
+on these fragments lets the gate name the real cause instead of
+reporting "did not emit valid JSON"."""
+
+
+def _run_clew_dag_verify(
     clew_bin: str,
     project_dir: Path,
     *,
     timeout_s: float,
-) -> tuple[str, int]:
-    """Return ``(stdout, returncode)`` from ``clew claim verify --json``."""
-    cmd = [clew_bin, "claim", "verify", "--json"]
+) -> tuple[str, str, int]:
+    """Return ``(stdout, stderr, returncode)`` from ``clew dag --claims --json``."""
+    cmd = [clew_bin, "dag", "--claims", "--json"]
     try:
         result = subprocess.run(
             cmd,
@@ -167,52 +197,69 @@ def _run_clew_claim_verify(
     except subprocess.TimeoutExpired as e:
         raise GateFailure(
             "clew_dag",
-            f"`clew claim verify` exceeded {timeout_s:.0f}s",
+            f"`clew dag --claims` exceeded {timeout_s:.0f}s",
             f"cwd: {project_dir}",
         ) from e
-    return result.stdout, result.returncode
+    return result.stdout, result.stderr, result.returncode
 
 
-def _parse_verification_payload(
-    stdout: str,
-) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    """Return ``(green_ids, red_ids)`` from a ``clew claim verify --json``
-    stdout payload.
+def _raise_for_unprovisioned_store(stderr: str, project_dir: Path) -> None:
+    """Raise the actionable store GateFailure when the markers match."""
+    if any(marker in stderr for marker in _STORE_PROVISION_MARKERS):
+        tail = stderr.strip().splitlines()[-1] if stderr.strip() else "<empty stderr>"
+        raise GateFailure(
+            "clew_dag",
+            "clew store not provisioned for this project",
+            (
+                f"project: {project_dir}; clew refused before verifying: "
+                f"{tail[:200]}. Run provision_store_acl through the "
+                "authorized migration identity (infra), then resubmit."
+            ),
+        )
 
-    Two shapes are accepted so that we tolerate Clew's evolving JSON
-    schema across releases:
 
-    1. ``{"claims": [{"id": "...", "status": "green"|"red"|...}, ...]}``
-    2. ``[{"id": "...", "status": "..."}, ...]``
+def _parse_dag_payload(payload: dict) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Return ``(green_ids, red_ids)`` from a ``clew dag --json`` payload.
 
-    Any non-``"green"`` (case-insensitive) is bucketed into red — we
-    do not distinguish ``red`` from ``unknown`` for this gate, only
-    whether at least one claim is verified.
+    Runs carry ``session_id`` + ``is_verified`` (``scitex-clew`` 0.21.0
+    ``_dag_payload`` shape). A run counts green only when
+    ``is_verified`` is literally true; anything else — including a
+    missing flag — buckets red. Green entries surface the
+    ``session_id`` so the failure detail names the exact runs.
     """
-    try:
-        payload = json.loads(stdout)
-    except json.JSONDecodeError as e:
+    runs = payload.get("runs", [])
+    if not isinstance(runs, list):
         raise GateFailure(
             "clew_dag",
-            "`clew claim verify --json` did not emit valid JSON",
-            f"first 200 chars of stdout: {stdout[:200]!r} (error: {e})",
-        ) from e
-    if isinstance(payload, dict) and "claims" in payload:
-        claims = payload["claims"]
-    elif isinstance(payload, list):
-        claims = payload
-    else:
-        raise GateFailure(
-            "clew_dag",
-            "`clew claim verify --json` returned an unknown shape",
-            f"top-level type: {type(payload).__name__}",
+            "`clew dag --json` runs field is not a list",
+            f"got: {type(runs).__name__}",
         )
-    if not isinstance(claims, list):
-        raise GateFailure(
-            "clew_dag",
-            "`clew claim verify --json` claims field is not a list",
-            f"got: {type(claims).__name__}",
-        )
+    green: list[str] = []
+    red: list[str] = []
+    for i, run in enumerate(runs):
+        if not isinstance(run, dict):
+            raise GateFailure(
+                "clew_dag",
+                "run entry is not an object",
+                f"entry index {i}: {run!r}",
+            )
+        run_id = str(run.get("session_id", f"<run-{i}>"))
+        if run.get("is_verified") is True:
+            green.append(run_id)
+        else:
+            red.append(run_id)
+    return tuple(green), tuple(red)
+
+
+def _parse_legacy_claims_payload(
+    claims: list,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Return ``(green_ids, red_ids)`` from the legacy bare-list shape.
+
+    Kept so installs older than 0.21.0 keep working: a top-level list
+    (or ``{"claims": [...]}`` object) of ``{"id": ..., "status": ...}``
+    entries. Any non-``"green"`` status (case-insensitive) buckets red.
+    """
     green: list[str] = []
     red: list[str] = []
     for i, claim in enumerate(claims):
@@ -229,6 +276,48 @@ def _parse_verification_payload(
         else:
             red.append(claim_id)
     return tuple(green), tuple(red)
+
+
+def _parse_verification_payload(
+    stdout: str,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Return ``(green_ids, red_ids)`` from a clew JSON stdout payload.
+
+    Two shapes are accepted so that we tolerate Clew's evolving JSON
+    schema across releases:
+
+    1. ``clew dag --claims --json`` (0.21.0): an object with a
+       ``runs`` list of ``{"session_id": ..., "is_verified": bool}``.
+    2. Legacy: ``{"claims": [{"id": ..., "status": ...}]}`` or a bare
+       ``[{"id": ..., "status": ...}]`` list.
+    """
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError as e:
+        raise GateFailure(
+            "clew_dag",
+            "`clew dag --claims --json` did not emit valid JSON",
+            f"first 200 chars of stdout: {stdout[:200]!r} (error: {e})",
+        ) from e
+    if isinstance(payload, dict) and "runs" in payload:
+        return _parse_dag_payload(payload)
+    if isinstance(payload, dict) and "claims" in payload:
+        claims = payload["claims"]
+    elif isinstance(payload, list):
+        claims = payload
+    else:
+        raise GateFailure(
+            "clew_dag",
+            "`clew dag --claims --json` returned an unknown shape",
+            f"top-level type: {type(payload).__name__}",
+        )
+    if not isinstance(claims, list):
+        raise GateFailure(
+            "clew_dag",
+            "`clew dag --claims --json` claims field is not a list",
+            f"got: {type(claims).__name__}",
+        )
+    return _parse_legacy_claims_payload(claims)
 
 
 def verify_clew_dag(
@@ -259,12 +348,13 @@ def verify_clew_dag(
     Raises
     ------
     GateFailure
-        - No ``.clew/`` project in the bundle.
+        - No Clew project marker in the bundle.
         - ``clew`` binary not resolvable.
-        - ``clew claim verify`` timed out.
-        - ``clew claim verify`` emitted unparseable JSON.
-        - Verification returned zero claims (DAG empty).
-        - Verification returned claims but none green.
+        - ``clew dag --claims`` timed out.
+        - ``clew dag --claims --json`` emitted unparseable JSON.
+        - Clew store not provisioned (actionable: infra migration identity).
+        - Verification returned zero runs (DAG empty).
+        - Verification returned runs but none verified.
 
     Notes
     -----
@@ -276,9 +366,10 @@ def verify_clew_dag(
     root = Path(bundle_root)
     project_dir = _find_clew_project_dir(root)
     resolved_bin = _resolve_clew_binary(clew_bin)
-    stdout, returncode = _run_clew_claim_verify(
+    stdout, stderr, returncode = _run_clew_dag_verify(
         resolved_bin, project_dir, timeout_s=timeout_s
     )
+    _raise_for_unprovisioned_store(stderr, project_dir)
     green, red = _parse_verification_payload(stdout)
     total = len(green) + len(red)
     verification = ClewVerification(
@@ -293,7 +384,7 @@ def verify_clew_dag(
             "clew_dag",
             "Clew DAG present but verifies zero claims",
             (
-                f"project: {project_dir}; `clew claim verify` returncode={returncode}; "
+                f"project: {project_dir}; `clew dag --claims` returncode={returncode}; "
                 "submission requires the project to declare at least one claim."
             ),
         )
@@ -302,19 +393,21 @@ def verify_clew_dag(
             "clew_dag",
             f"all {total} Clew claim(s) red",
             (
-                f"project: {project_dir}; failing claim ids: "
+                f"project: {project_dir}; failing run session ids: "
                 f"{', '.join(red) if red else '<none>'}; returncode={returncode}; "
-                "Gate-1 requires at least one green claim."
+                "Gate-1 requires at least one verified run."
             ),
         )
     # At least one green — gate passes regardless of `clew`'s exit code.
-    # The CLI may return non-zero when *some* claims red even though
-    # others verified; gate-1 only cares about the >=1 green floor.
+    # The CLI may return non-zero when *some* runs are red even though
+    # others verified; gate-1 only cares about the >=1 verified floor.
     return verification
 
 
 __all__: Sequence[str] = (
     "CLEW_MARKER_DIR",
+    "CLEW_MARKER_DIRS",
+    "CLEW_STATE_DIR",
     "ClewVerification",
     "DEFAULT_VERIFY_TIMEOUT_S",
     "verify_clew_dag",

@@ -2,8 +2,8 @@
 
 Mostly hermetic — exercises the loader + Gate1Failure-wrapping paths
 that fail before any network IO. One opt-in test drives the real
-end-to-end against pub.orcid.org + GitHub + a real `clew`-initialised
-bundle.
+end-to-end against pub.orcid.org + GitHub + a real clew-registered
+bundle (needs a provisioned clew store).
 """
 
 from __future__ import annotations
@@ -82,11 +82,19 @@ def test_submit_emits_gate_1_fail_line_when_orcid_id_is_malformed(
 
 @pytest.fixture
 def real_passing_bundle(tmp_path: Path, monkeypatch_home) -> Path:
-    """Real ORCID + GitHub clone + clew init — gated on opt-in env."""
+    """Real ORCID + GitHub clone + real clew DAG — gated on opt-in env.
+
+    Needs ``SCITEX_RUN_NETWORK_TESTS=1`` (ORCID + code-repo HTTP),
+    ``SCITEX_RUN_CLEW_TESTS=1`` (real clew subprocess) AND
+    ``SCITEX_RUN_CLEW_STORE_TESTS=1`` (a provisioned PostgreSQL clew
+    store — claim registration needs it).
+    """
     if os.environ.get("SCITEX_RUN_NETWORK_TESTS") != "1":
         pytest.skip("opt in by setting SCITEX_RUN_NETWORK_TESTS=1")
     if os.environ.get("SCITEX_RUN_CLEW_TESTS") != "1":
         pytest.skip("opt in by setting SCITEX_RUN_CLEW_TESTS=1")
+    if os.environ.get("SCITEX_RUN_CLEW_STORE_TESTS") != "1":
+        pytest.skip("opt in by setting SCITEX_RUN_CLEW_STORE_TESTS=1")
     if shutil.which("clew") is None:
         pytest.skip("`clew` binary not on PATH")
     if shutil.which("git") is None:
@@ -94,7 +102,34 @@ def real_passing_bundle(tmp_path: Path, monkeypatch_home) -> Path:
     bundle = _write_bundle(tmp_path / "bundle")
     import subprocess as _sp
 
-    _sp.run(["clew", "init"], cwd=str(bundle), check=True, capture_output=True)
+    (bundle / "result.txt").write_text("value = 42\n", encoding="utf-8")
+    (bundle / "paper.tex").write_text("The answer is 42\n", encoding="utf-8")
+    _sp.run(
+        ["clew", "register-source", "result.txt"],
+        cwd=str(bundle),
+        check=True,
+        capture_output=True,
+    )
+    _sp.run(
+        [
+            "clew",
+            "claim",
+            "add",
+            "--file-path",
+            "paper.tex",
+            "--type",
+            "value",
+            "--value",
+            "42",
+            "--source-file",
+            "result.txt",
+            "--line-number",
+            "1",
+        ],
+        cwd=str(bundle),
+        check=True,
+        capture_output=True,
+    )
     return bundle
 
 

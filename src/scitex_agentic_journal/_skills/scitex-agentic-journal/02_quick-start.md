@@ -69,7 +69,7 @@ print(f"GATE-1 PASS — {len(result.green_claims)} green, "
       f"{len(result.red_claims)} red")
 ```
 
-`verify_clew_dag` shells out to the real `clew claim verify` CLI —
+`verify_clew_dag` shells out to the real `clew dag --claims --json` CLI —
 no mocks. See [12_gate1-checks.md](12_gate1-checks.md) for the
 full structural-check contract.
 
