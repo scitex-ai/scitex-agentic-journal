@@ -151,7 +151,9 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
   the removed `clew init`; full-pass fixtures run a real
   `clew.session()` step so a tracked run produces the claimed source,
   and are gated on the new `SCITEX_RUN_CLEW_STORE_TESTS=1`
-  (provisioned store required).
+  (provisioned store required). The unprovisioned-premise store test
+  runs only where the store is not provisioned (lead decision (a)) —
+  where `STORE_TESTS` is set its premise cannot occur, so it skips.
 - CLI audit dict review-verb + AAA test style (#42).
 
 ## [0.1.0-alpha] — 2026-06-12
