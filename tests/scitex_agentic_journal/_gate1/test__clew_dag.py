@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import shutil
 import stat
 import sys
@@ -862,10 +863,12 @@ def provisioned_clew_bundle(tmp_path: Path) -> Path:
 
     bundle = tmp_path / "bundle"
     bundle.mkdir()
+    run_id = f"ajfx-{secrets.token_hex(4)}"
+    claim_id = f"ajfx-green-{secrets.token_hex(4)}"
     (bundle / "paper.tex").write_text("The answer is 42\n", encoding="utf-8")
     (bundle / "make_result.py").write_text(
         "import scitex_clew as clew\n"
-        'with clew.session(script_path="make_result.py") as run:\n'
+        f'with clew.session(script_path="make_result.py", session_id={run_id!r}) as run:\n'
         '    run.record_input("paper.tex")\n'
         '    with open("result.txt", "w") as fh:\n'
         '        fh.write("value = 42\\n")\n'
@@ -897,9 +900,24 @@ def provisioned_clew_bundle(tmp_path: Path) -> Path:
             "42",
             "--source-file",
             "result.txt",
+            "--source-session",
+            run_id,
+            "--claim-id",
+            claim_id,
             "--line-number",
             "1",
         ],
+        cwd=str(bundle),
+        check=True,
+        capture_output=True,
+    )
+    # Seed validation (not the gate): per-claim verify must already be
+    # green here, or the fixture fails fast with clew's own diagnostics
+    # instead of the gate reporting an opaque empty DAG. This writes no
+    # gate input — `dag` reads runs/file_hashes, never claim status —
+    # so the gate verdict under test stays independently computed.
+    _sp.run(
+        ["clew", "claim", "verify", claim_id],
         cwd=str(bundle),
         check=True,
         capture_output=True,

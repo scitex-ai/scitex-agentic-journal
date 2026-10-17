@@ -9,6 +9,7 @@ bundle (needs a provisioned clew store).
 from __future__ import annotations
 
 import os
+import secrets
 import shutil
 import sys
 from pathlib import Path
@@ -105,10 +106,12 @@ def real_passing_bundle(tmp_path: Path, monkeypatch_home) -> Path:
     except ImportError:
         pytest.skip("scitex_clew python package not importable")
     bundle = _write_bundle(tmp_path / "bundle")
+    run_id = f"ajfx-{secrets.token_hex(4)}"
+    claim_id = f"ajfx-green-{secrets.token_hex(4)}"
     (bundle / "paper.tex").write_text("The answer is 42\n", encoding="utf-8")
     (bundle / "make_result.py").write_text(
         "import scitex_clew as clew\n"
-        'with clew.session(script_path="make_result.py") as run:\n'
+        f'with clew.session(script_path="make_result.py", session_id={run_id!r}) as run:\n'
         '    run.record_input("paper.tex")\n'
         '    with open("result.txt", "w") as fh:\n'
         '        fh.write("value = 42\\n")\n'
@@ -142,9 +145,22 @@ def real_passing_bundle(tmp_path: Path, monkeypatch_home) -> Path:
             "42",
             "--source-file",
             "result.txt",
+            "--source-session",
+            run_id,
+            "--claim-id",
+            claim_id,
             "--line-number",
             "1",
         ],
+        cwd=str(bundle),
+        check=True,
+        capture_output=True,
+    )
+    # Seed validation (not the gate): per-claim verify must already be
+    # green here — see provisioned_clew_bundle for why this is
+    # validation, not answer injection.
+    _sp.run(
+        ["clew", "claim", "verify", claim_id],
         cwd=str(bundle),
         check=True,
         capture_output=True,
