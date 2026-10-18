@@ -8,6 +8,7 @@ version = "0.1.0-alpha"
 description = "ARA-native AI-reviewed open publishing on top of Clew. Part of SciTeX."
 readme = "README.md"
 license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [
     { name = "Yusuke Watanabe", email = "noreply@scitex.ai" },
@@ -16,16 +17,21 @@ keywords = [
     "scitex",
     "open-publishing",
     "ai-review",
+    "agentic-review",
+    "peer-review",
     "ara",
     "preprint",
     "clew",
     "doi",
     "orcid",
     "live-paper",
+    "reproducibility",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
+    "Framework :: Django",
     "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -33,7 +39,9 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Information Analysis",
     "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Topic :: Text Processing :: Markup :: LaTeX",
 ]
 dependencies = [
     # Hub-side Django app (loose coupling to scitex-cloud via writer_django wrapper pattern).
@@ -54,6 +62,30 @@ dependencies = [
 test = [
     "pytest>=8.0",
     "pytest-django>=4.0",
+    "pytest-cov>=4.0",
+]
+# `dev` is the canonical "everything an in-repo contributor needs" extra
+# that the ecosystem CI template (pr-ci.yml / release-ci.yml) tries first.
+# Keep it a superset of `test` so that `pip install -e .[dev]` is enough
+# to run pytest, build, lint.
+dev = [
+    "pytest>=8.0",
+    "pytest-django>=4.0",
+    "pytest-cov>=4.0",
+    # tests/scitex_agentic_journal/_mcp/test__tools.py imports `fastmcp`
+    # at the module level; pinning it into `[dev]` (PS-210) keeps a
+    # fresh `pip install -e .[dev]` able to run the full suite without
+    # the operator having to also add `[mcp]`.
+    "fastmcp>=2.0",
+]
+# `all` is the ecosystem-template fallback that pulls every optional
+# dependency (test + mcp + …). When new optional extras get added they
+# should be appended here too.
+all = [
+    "pytest>=8.0",
+    "pytest-django>=4.0",
+    "pytest-cov>=4.0",
+    "fastmcp>=2.0",
 ]
 mcp = [
     "fastmcp>=2.0",
@@ -66,6 +98,7 @@ scitex-agentic-journal = "scitex_agentic_journal._cli:main"
 Homepage = "https://github.com/ywatanabe1989/scitex-agentic-journal"
 Repository = "https://github.com/ywatanabe1989/scitex-agentic-journal"
 Issues = "https://github.com/ywatanabe1989/scitex-agentic-journal/issues"
+Changelog = "https://github.com/ywatanabe1989/scitex-agentic-journal/blob/develop/CHANGELOG.md"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
@@ -80,9 +113,14 @@ include = ["scitex_agentic_journal*"]
     "_django/templates/**/*",
     "_django/static/**/*",
     "_review/prompts/**/*",
+    "_decide/rules/**/*",
     "_skills/**/*",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = [
+    "network: real-network tests (e.g. pub.orcid.org). Opt in with SCITEX_RUN_NETWORK_TESTS=1.",
+    "integration: end-to-end tests that exec shell examples / hit real peers (network + git). Skipped automatically when prerequisites are absent.",
+]

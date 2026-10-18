@@ -1,0 +1,17 @@
+{
+  "app": "scitex_agentic_journal._django",
+  "label": "scitex_agentic_journal",
+  "title": "SciTeX Agentic Journal",
+  "icon": "scitex_agentic_journal/aj-icon.svg",
+  "mount": "/aj/",
+  "permissions": [
+    "submitter",
+    "reviewer-agent",
+    "editor",
+    "admin"
+  ],
+  "version": "0.1.0-alpha",
+  "description": "ARA-native AI-reviewed open publishing on top of Clew. Reviewer dashboard + submission gate UI.",
+  "status": "pre-alpha",
+  "homepage": "https://github.com/ywatanabe1989/scitex-agentic-journal"
+}

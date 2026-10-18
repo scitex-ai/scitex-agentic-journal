@@ -1,0 +1,70 @@
+# Editorial decision rules — versioned, auditable. (Gate-3 / M3 — issue #7.)
+#
+# Every numeric threshold lives here. The decision engine surfaces the
+# threshold value in the RuleHit message so reviewers can audit *why*
+# the engine reached its verdict — there is no silent default in code.
+#
+# Rules are evaluated in declared order. Within a verdict tier (reject,
+# revise) the **first** failing rule wins; if no reject/revise rule
+# fires, the verdict is accept.
+
+version: v1
+
+# Cross-rule numeric thresholds. Surfaced verbatim into RuleHit.message
+# so an auditor never has to guess what number the engine compared.
+thresholds:
+  # Novelty.overlap_score >= this value triggers a revise. 0.0 fully
+  # novel, 1.0 fully redundant; 0.7 is the documented Gate-3 cutoff.
+  novelty_revise_threshold: 0.7
+
+rules:
+  # --- reject tier -------------------------------------------------------
+  - id: methodology_fatal
+    verdict: reject
+    description: >-
+      Reject when the methodology sub-report contains any FATAL-severity
+      criticism. A fatal flaw cannot be repaired by revision; the
+      submission must be re-built and re-submitted as a fresh manuscript.
+
+  - id: reproducibility_failed
+    verdict: reject
+    description: >-
+      Reject when the reproducibility sub-report did not pass. ARA-native
+      publishing requires a re-executable bundle; a failure here is a
+      structural blocker, not a writing problem.
+
+  - id: claim_verify_zero_green
+    verdict: reject
+    description: >-
+      Reject when the claim_verify sub-report produced zero green claims.
+      A submission with no verified claims has nothing to publish.
+
+  # --- revise tier -------------------------------------------------------
+  - id: methodology_major
+    verdict: revise
+    description: >-
+      Revise when the methodology sub-report's max_severity is MAJOR.
+      Major issues are recoverable in a revision pass; minor issues are
+      not blocking and pass through.
+
+  - id: claim_verify_red_present
+    verdict: revise
+    description: >-
+      Revise when one or more claims are flagged red by claim_verify.
+      A red claim is repairable (re-run the analysis, tighten the
+      manifest, re-submit) — it does not block the whole submission.
+
+  - id: novelty_overlap_high
+    verdict: revise
+    description: >-
+      Revise when novelty.overlap_score meets or exceeds
+      thresholds.novelty_revise_threshold. The author must triangulate
+      against the flagged nearest neighbours in a revision.
+
+  # --- accept tier -------------------------------------------------------
+  - id: default_accept
+    verdict: accept
+    description: >-
+      Accept when no reject or revise rule fired. This rule always
+      passes — it is the explicit accept anchor so every DecisionRecord
+      cites at least one rule_hit.

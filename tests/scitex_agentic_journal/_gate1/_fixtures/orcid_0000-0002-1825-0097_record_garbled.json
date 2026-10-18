@@ -1,0 +1,4 @@
+{
+  "orcid-identifier": {"path": "0000-0002-1825-0097"},
+  "person": "this should be an object, not a string"
+}

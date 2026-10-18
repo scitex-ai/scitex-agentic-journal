@@ -1,0 +1,12 @@
+{
+  "orcid-identifier": {
+    "uri": "https://orcid.org/0000-0001-2345-6789",
+    "path": "0000-0001-2345-6789",
+    "host": "orcid.org"
+  },
+  "person": {
+    "name": {
+      "family-name": {"value": "Solo"}
+    }
+  }
+}

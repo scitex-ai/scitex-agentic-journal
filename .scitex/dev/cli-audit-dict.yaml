@@ -1,0 +1,22 @@
+# Project-local overrides for scitex-dev's CLI audit dictionary.
+#
+# Tokens listed here override the default noun/verb classification
+# the auditor derives from CATALOG / moby. See
+# `scitex_dev._cli.audit._summary._audit:_load_custom_dict`.
+
+# Verbs that don't need a sibling — the CLI verb at the top level is
+# a complete (intransitive) action.
+intransitive_verbs:
+  # `scitex-agentic-journal hub-manifest` is the agentic-journal
+  # mirror of scitex-live-paper's `hub-manifest` Click verb (PR #45).
+  # The verb is intransitive: the action is "emit the wrapper manifest
+  # JSON to stdout"; the verb name reads as a noun ("hub manifest") in
+  # the bare token-classifier sense, but the action it performs is a
+  # complete unit (no object needed; redirect to `> manifest.json` is
+  # the canonical use). Mirrors what live-paper already ships
+  # cross-package.
+  - hub-manifest
+  # `scitex-agentic-journal review` runs a single reviewer-agent
+  # against a persisted submission (verb sense: "to review the
+  # submission"). Same escape hatch `next` uses.
+  - review

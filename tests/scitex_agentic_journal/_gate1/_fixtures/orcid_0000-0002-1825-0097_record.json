@@ -1,0 +1,14 @@
+{
+  "orcid-identifier": {
+    "uri": "https://orcid.org/0000-0002-1825-0097",
+    "path": "0000-0002-1825-0097",
+    "host": "orcid.org"
+  },
+  "person": {
+    "name": {
+      "given-names": {"value": "Josiah"},
+      "family-name": {"value": "Carberry"},
+      "credit-name": {"value": "Josiah S. Carberry"}
+    }
+  }
+}
