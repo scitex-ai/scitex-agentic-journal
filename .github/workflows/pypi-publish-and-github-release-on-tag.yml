@@ -45,7 +45,7 @@ jobs:
   # commit. The CI gate lives INSIDE this reusable (`promote: needs: ci`).
   # --------------------------------------------------------------------------
   promote:
-    uses: scitex-ai/.github/.github/workflows/promote-develop-to-main-on-tag.yml@8c646081e9f1352077d3d8674052cce7ec75a1b7
+    uses: scitex-ai/.github/.github/workflows/promote-develop-to-main-on-tag.yml@23e11bbcb40ebbba54577d290fd26a6f65b2e346
     # The nested promote job opens/merges the develop->main PR: it requests
     # contents:write + pull-requests:write, which fails startup against the
     # file's top-level contents:read unless granted here (2026-10-18).
@@ -57,6 +57,10 @@ jobs:
       runs-on-json: '["ubuntu-latest"]'
       # ADJUST for a self-hosted/SIF repo: '["self-hosted","Linux","X64","spartan-cpu"]'
       ci-runs-on-json: '["ubuntu-latest"]'
+      # Explicit tag: on workflow_dispatch GITHUB_REF is a branch, so the
+      # reusable cannot derive the tag from the ref (org #99). Push events
+      # pass ref_name (= the tag); dispatch passes inputs.version.
+      tag: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
     secrets:
       # Named, not `inherit`. `inherit` forwards EVERY secret this repo holds
       # into CI; pytest-matrix.yml's own header withdraws that advice.
