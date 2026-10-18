@@ -2,7 +2,7 @@
 
 All notable changes to `scitex-agentic-journal` are documented in this file.
 
-## [Unreleased]
+## [0.1.0-alpha] - 2026-10-18
 
 ### Added
 - Demo `docs/demo/monday-mock.html` (#44): single-file zero-dependency
