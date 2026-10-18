@@ -117,6 +117,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest   # ADJUST
     timeout-minutes: 30
+    environment:
+      name: pypi
+      url: https://pypi.org/p/scitex-agentic-journal
     permissions:
       id-token: write   # OIDC: PyPI trusted publishing
       contents: read
