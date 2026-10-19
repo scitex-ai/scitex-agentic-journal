@@ -9,13 +9,15 @@ from __future__ import annotations
 
 from django.urls import path
 
-from scitex_agentic_journal._django import views
+from scitex_agentic_journal._django import handlers, views
 
 app_name = "scitex_agentic_journal"
 
 
 urlpatterns = [
     path("", views.submissions_index, name="submissions-index"),
+    path("app/", views.app_page, name="app-page"),
+    path("submit/", handlers.submit, name="submit"),
     path("archive/", views.archive_view, name="archive"),
     path("dashboard/", views.decision_dashboard_view, name="decision-dashboard"),
     path(

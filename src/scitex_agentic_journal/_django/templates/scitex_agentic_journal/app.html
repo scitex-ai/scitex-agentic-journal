@@ -1,0 +1,45 @@
+{% extends "scitex_sdk/app/app_shell.html" %}
+{% comment %}
+Agentic Journal plugin page (server-rendered leaf).
+
+Extends the SDK app shell and fills only `scitex_app_content` — the
+leaf owns no layout. No `{% url %}` tags and no absolute paths: hub
+mounts this urlconf under its own namespace/prefix
+(`journal-leaf`), so every link here would be wrong. Machine clients
+use the JSON endpoints (`archive/`, `submissions/<id>/`, …); this
+page is the human-readable mirror of the same `_leaf` payloads.
+{% endcomment %}
+{% block scitex_app_content %}
+<main class="aj-page">
+  <h1>Agentic Journal</h1>
+  <p>AI-reviewed open publishing on top of Clew.</p>
+  {% if placeholder %}
+  <p>No submissions yet. Submit a bundle to open the journal.</p>
+  {% else %}
+  <table>
+    <thead>
+      <tr>
+        <th>Submission</th>
+        <th>Gate-1</th>
+        <th>Review</th>
+        <th>Decision</th>
+        <th>Verdict</th>
+        <th>Persistent ID</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in submissions %}
+      <tr>
+        <td>{{ row.submission_id }}</td>
+        <td>{{ row.has_gate1 }}</td>
+        <td>{{ row.has_review }}</td>
+        <td>{{ row.has_decision }}</td>
+        <td>{{ row.verdict|default:"—" }}</td>
+        <td>{{ row.persistent_id|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</main>
+{% endblock %}
