@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scitex-agentic-journal"
-version = "0.1.0-alpha"
+version = "0.1.0a1"
 description = "ARA-native AI-reviewed open publishing on top of Clew. Part of SciTeX."
 readme = "README.md"
 license = "AGPL-3.0-only"

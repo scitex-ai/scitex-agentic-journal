@@ -2,6 +2,15 @@
 
 All notable changes to `scitex-agentic-journal` are documented in this file.
 
+## [Unreleased]
+
+## [0.1.0a1] - 2026-10-19
+
+### Fixed
+- Release pipeline: promote write scope (#51), explicit tag to promote
+  (org #99 pin, #53), publish via `pypi` environment — trusted-publisher
+  parity with storage (#55).
+
 ## [0.1.0-alpha] - 2026-10-18
 
 ### Added
