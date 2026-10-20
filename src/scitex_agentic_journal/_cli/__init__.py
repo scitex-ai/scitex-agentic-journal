@@ -224,6 +224,14 @@ from scitex_agentic_journal._cli._hub_manifest import (
 register_hub_manifest_command(main)
 
 
+# `gui` subcommand (standalone GUI launcher — SDK canonical shape).
+# Implementation lives in `_cli._gui` (sibling submodule) so this
+# module stays under the harness's per-file line ceiling.
+from scitex_agentic_journal._cli._gui import register_gui_command
+
+register_gui_command(main)
+
+
 @main.command(name="list-python-apis")
 @click.option(
     "-v",

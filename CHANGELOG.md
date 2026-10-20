@@ -19,6 +19,11 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
   publish loop (ticket review, repo-per-paper, Clew hover graph).
   Visual only — no package code touched.
 - Canonical CI caller + tag-driven release caller workflows (#43).
+- `scitex-agentic-journal gui` standalone launcher (SDK-canonical
+  `serve_gui` + `run_standalone` over `scitex_agentic_journal._django`,
+  same shape `scitex-sdk app init` scaffolds): binds exactly `--port`
+  or fails loud, `--force` reclaims only this app's own GUI.
+  Tests: `tests/scitex_agentic_journal/_cli/test__gui.py` (6 tests).
 - Leaf `_django` demo surface (aj-leaf-django): `_django/_leaf.py`
   (Django-free helpers: real-FS archive list, deterministic mock
   validator panel, browse/share payloads, HTML payload via the
@@ -100,6 +105,13 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
   binary, pre-existing destination, clone failure (exit code + stderr
   excerpt), or timeout. On any failure the partially-populated
   destination is removed.
+
+### Fixed
+- Leaf `_django/manifest.json`: added the `dependencies` object
+  (`python` / `system` / `node` / `r` / `other`, all empty) required
+  by scitex-sdk 0.3.6 (`scitex-sdk app validate` now passes; was
+  `manifest.json missing 'dependencies' field`). No behaviour change —
+  the leaf carries no extra system/node/r deps.
 - `_gate1.cloned_code_repo(repo_url, ...)` — context-manager helper that
   clones into a tempdir and cleans up on exit, so the CLI orchestrator
   (issue #5) does not have to manage tempdirs itself.

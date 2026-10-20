@@ -44,15 +44,14 @@ def test_manifest_path_points_to_manifest_json() -> None:
 
 
 def test_manifest_loads_with_required_keys() -> None:
-    # Arrange
+    # Arrange — the SDK's required six (MANIFEST_REQUIRED_KEYS).
     expected_keys = {
-        "app",
+        "name",
+        "slug",
         "label",
-        "title",
+        "pip_package",
         "icon",
-        "mount",
-        "permissions",
-        "version",
+        "license",
     }
     # Act
     body = load_manifest()
@@ -60,40 +59,91 @@ def test_manifest_loads_with_required_keys() -> None:
     assert expected_keys.issubset(body.keys())
 
 
-def test_manifest_app_matches_dotted_app_name() -> None:
-    # Arrange
-    body = load_manifest()
+def test_manifest_declares_no_version() -> None:
+    # Arrange — hand-written `version` is FORBIDDEN (drifts from the
+    # installed dist; the version derives from `pip_package`).
     # Act
-    name_in_manifest = body["app"]
-    # Assert
-    assert name_in_manifest == APP_NAME
-
-
-def test_manifest_label_matches_app_label() -> None:
-    # Arrange
     body = load_manifest()
-    # Act
-    label = body["label"]
     # Assert
-    assert label == APP_LABEL
+    assert "version" not in body
 
 
-def test_manifest_mount_is_prefix() -> None:
+def test_manifest_scope_is_closed_enum() -> None:
     # Arrange
-    body = load_manifest()
     # Act
-    mount = body["mount"]
+    body = load_manifest()
     # Assert
-    assert mount.startswith("/")
+    assert body.get("scope", "user") in {"user", "project"}
 
 
-def test_manifest_permissions_contains_admin() -> None:
+def test_manifest_pip_package_is_this_dist() -> None:
     # Arrange
-    body = load_manifest()
     # Act
-    has_admin = "admin" in body["permissions"]
+    body = load_manifest()
     # Assert
-    assert has_admin is True
+    assert body["pip_package"] == "scitex-agentic-journal"
+
+
+def test_manifest_name_uses_app_suffix() -> None:
+    # Arrange — SDK advisory: `name` ends with `_app` / `-app`.
+    # Act
+    body = load_manifest()
+    # Assert
+    assert body["name"].endswith(("_app", "-app"))
+
+
+def test_manifest_rejects_version_key(tmp_path: Path) -> None:
+    # Arrange
+    bad = tmp_path / "bad.json"
+    bad.write_text(
+        json.dumps(
+            {
+                "name": "x_app",
+                "slug": "x",
+                "label": "X",
+                "pip_package": "x",
+                "icon": "x",
+                "license": "x",
+                "version": "0.0.0",
+            }
+        )
+    )
+    # Act
+    # Assert
+    with pytest.raises(ValueError, match="version"):
+        load_manifest(bad)
+
+
+def test_manifest_rejects_unknown_scope(tmp_path: Path) -> None:
+    # Arrange
+    bad = tmp_path / "bad.json"
+    bad.write_text(
+        json.dumps(
+            {
+                "name": "x_app",
+                "slug": "x",
+                "label": "X",
+                "pip_package": "x",
+                "icon": "x",
+                "license": "x",
+                "scope": "galaxy",
+            }
+        )
+    )
+    # Act
+    # Assert
+    with pytest.raises(ValueError, match="scope"):
+        load_manifest(bad)
+
+
+def test_manifest_matches_sdk_validator_when_sdk_present() -> None:
+    # Arrange — the SDK's own validator is authoritative; our mirror
+    # must agree with it wherever the SDK is installed.
+    scitex_sdk = pytest.importorskip("scitex_sdk.app.appmaker._validate._manifest")
+    # Act
+    errors = scitex_sdk.validate_manifest(APP_MANIFEST_PATH.parent)
+    # Assert
+    assert errors == []
 
 
 def test_manifest_missing_file_raises(tmp_path: Path) -> None:
@@ -136,7 +186,30 @@ def _configure_django() -> None:
         INSTALLED_APPS=[
             "django.contrib.contenttypes",
             "django.contrib.auth",
+            "django.contrib.staticfiles",
+            "scitex_sdk.app",
+            "scitex_sdk.ui",
             "scitex_agentic_journal._django",
+        ],
+        # The SDK UI config autowires dev middleware/processors in
+        # ready() — explicitly off under test.
+        SCITEX_UI_AUTOWIRE_INSPECTOR=False,
+        STATIC_URL="/static/",
+        STORAGES={
+            "default": {
+                "BACKEND": "django.core.files.storage.FileSystemStorage",
+            },
+            "staticfiles": {
+                "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+            },
+        },
+        TEMPLATES=[
+            {
+                "BACKEND": "django.template.backends.django.DjangoTemplates",
+                "DIRS": [],
+                "APP_DIRS": True,
+                "OPTIONS": {},
+            }
         ],
         DATABASES={
             "default": {
@@ -172,6 +245,25 @@ def test_app_config_name_matches_app_name() -> None:
     name = SciTeXAgenticJournalConfig.name
     # Assert
     assert name == APP_NAME
+
+
+def test_app_config_prefers_sdk_base() -> None:
+    # Arrange — guarded import: SDK base where installed, plain
+    # Django AppConfig where it isn't (this container).
+    from django.apps import AppConfig
+    from scitex_agentic_journal._django.apps import (
+        SciTeXAgenticJournalConfig,
+    )
+
+    # Act
+    try:
+        from scitex_sdk.app.embed import ScitexAppConfig
+    except ImportError:
+        expected = AppConfig
+    else:
+        expected = ScitexAppConfig
+    # Assert
+    assert issubclass(SciTeXAgenticJournalConfig, expected)
 
 
 def test_urls_reverse_submission_detail() -> None:
@@ -213,16 +305,16 @@ def test_urls_reverse_decision_record() -> None:
     assert url.endswith("/decision/")
 
 
-def test_handler_submit_returns_503_until_implemented() -> None:
-    # Arrange
+def test_handler_submit_rejects_empty_post_without_traceback() -> None:
+    # Arrange — POST with no JSON body must 400, never 503, never raise.
     from django.test import RequestFactory
     from scitex_agentic_journal._django.handlers import submit
 
-    request = RequestFactory().post("/aj/submit")
+    request = RequestFactory().post("/aj/submit/")
     # Act
     response = submit(request)
     # Assert
-    assert response.status_code == 503
+    assert response.status_code == 400
 
 
 def test_view_submissions_index_returns_placeholder_flag() -> None:

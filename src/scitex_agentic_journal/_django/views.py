@@ -1,45 +1,64 @@
 """Read-only views for the reviewer dashboard.
 
-The views in M1 are intentionally minimal: they return a structured
-JSON payload describing what the page **would** show once the gate
-engines persist real records. Once gate-2 / gate-3 / gate-4 ship, the
-views switch from "placeholder" to "read the real model row" with no
-template change.
+``submissions_index`` / ``submission_detail`` read the real on-disk
+submission home (``$SCITEX_AGENTIC_JOURNAL_HOME/submissions/*/``)
+via :mod:`scitex_agentic_journal._django._leaf`, so the Hub-mounted
+dashboard lists what the ``submit`` CLI / POST handler actually
+persisted. An empty home still returns explicit
+``"placeholder": true`` so dashboards render the wired-but-empty
+state instead of a misleading table.
+
+Gate-2 / gate-3 views (review / decision) stay placeholders until
+M2 / M3 persist real records.
 """
 
 from __future__ import annotations
 
 from django.http import HttpRequest, JsonResponse
+from django.shortcuts import render
+
+from scitex_agentic_journal._django import _leaf
+
+
+def app_page(request: HttpRequest):
+    """Plugin page — the archive rendered inside the SDK app shell.
+
+    Server-rendered mirror of :func:`archive_view` for human readers;
+    machine clients use the JSON endpoints. Extends
+    ``scitex_sdk/app/app_shell.html`` (block ``scitex_app_content``)
+    per the SDK leaf contract; carries no ``{% url %}`` tags so the
+    page stays correct under hub's mount prefix + namespace.
+    """
+    return render(
+        request,
+        "scitex_agentic_journal/app.html",
+        _leaf.list_archive(),
+    )
 
 from scitex_agentic_journal._django import _leaf
 
 
 def submissions_index(request: HttpRequest) -> JsonResponse:
-    """List endpoint (placeholder).
+    """List endpoint — real on-disk archive, placeholder when empty.
 
-    Returns 200 with an empty list so deployments can wire the
-    endpoint into their nav before the journal has any data. The
-    placeholder is explicit (``"placeholder": true``) so dashboards
+    Returns 200 with one summary row per persisted submission (the
+    same rows the CLI ``submit`` command creates). Deployments can
+    wire the endpoint into their nav before the journal has any data:
+    the empty home is explicit (``"placeholder": true``) so dashboards
     don't render it as a real empty journal.
     """
-    return JsonResponse(
-        {
-            "submissions": [],
-            "placeholder": True,
-            "next_milestone": "M1 submission gate",
-        }
-    )
+    return JsonResponse(_leaf.list_archive())
 
 
 def submission_detail(request: HttpRequest, submission_id: str) -> JsonResponse:
-    """Detail endpoint for one submission (placeholder)."""
-    return JsonResponse(
-        {
-            "submission_id": submission_id,
-            "status": "gate1-pending",
-            "placeholder": True,
-        }
-    )
+    """Detail endpoint for one submission — real record, 404 when unknown."""
+    summary = _leaf.get_submission_summary(submission_id)
+    if summary is None:
+        return JsonResponse(
+            {"submission_id": submission_id, "found": False},
+            status=404,
+        )
+    return JsonResponse({**summary, "found": True, "placeholder": False})
 
 
 def review_record_view(request: HttpRequest, submission_id: str) -> JsonResponse:
