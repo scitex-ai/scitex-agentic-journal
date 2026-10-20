@@ -47,7 +47,9 @@ dependencies = [
     # Hub-side Django app (loose coupling to scitex-cloud via writer_django wrapper pattern).
     "django>=4.2",
     # SciTeX dev tooling (CLI scaffolds, validate-version helpers).
-    "scitex-dev>=0.11.7",
+    # Floor tracks the supervision line (figrecipe >=0.60.1); we run
+    # 0.62.4.
+    "scitex-dev>=0.62.4",
     # UI shell + components (live-paper viewer when ready).
     "scitex-ui>=0.1.0",
     # Embed + standalone-GUI contract (ScitexAppConfig, serve_gui,
