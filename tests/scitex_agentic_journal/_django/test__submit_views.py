@@ -85,7 +85,7 @@ def _client():
 
 
 def test_index_empty_home_is_placeholder(_home: Path) -> None:
-    body = json.loads(_client().get("/aj/").content)
+    body = json.loads(_client().get("/aj/archive/").content)
     assert body["submissions"] == []
     assert body["placeholder"] is True
 
@@ -97,7 +97,7 @@ def test_index_lists_persisted_submission(_home: Path) -> None:
         json.dumps({"submission_id": "sub_2026_10_19_aaaaaa", "gate": "gate1"}),
         encoding="utf-8",
     )
-    body = json.loads(_client().get("/aj/").content)
+    body = json.loads(_client().get("/aj/archive/").content)
     assert body["placeholder"] is False
     assert [r["submission_id"] for r in body["submissions"]] == [
         "sub_2026_10_19_aaaaaa"

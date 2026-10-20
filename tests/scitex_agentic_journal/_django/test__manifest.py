@@ -328,3 +328,19 @@ def test_view_submissions_index_returns_placeholder_flag() -> None:
     body = json.loads(response.content)
     # Assert
     assert body["placeholder"] is True
+
+
+def test_root_url_serves_gui_not_json() -> None:
+    # Arrange — the app URL must render the human GUI; raw JSON at
+    # the root is what the operator flagged (screenshot 20261020).
+    from django.test import Client
+    from django.urls import reverse
+
+    # Act
+    url = reverse("scitex_agentic_journal:index")
+    response = Client().get(url)
+    # Assert
+    assert url == "/aj/"
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/html")
+    assert b"Agentic Journal" in response.content

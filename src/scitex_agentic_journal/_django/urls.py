@@ -15,7 +15,7 @@ app_name = "scitex_agentic_journal"
 
 
 urlpatterns = [
-    path("", views.submissions_index, name="submissions-index"),
+    path("", views.app_page, name="index"),
     path("app/", views.app_page, name="app-page"),
     path("submit/", handlers.submit, name="submit"),
     path("archive/", views.archive_view, name="archive"),
