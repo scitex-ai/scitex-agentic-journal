@@ -11,6 +11,7 @@ seams the handler calls.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import re as _re
@@ -70,10 +71,17 @@ def _configure_django() -> None:
 
 
 @pytest.fixture
-def _home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    home = tmp_path / "home"
-    monkeypatch.setenv("SCITEX_AGENTIC_JOURNAL_HOME", str(home))
-    return home
+def _home(tmp_path: Path):
+    # Arrange — real env-var swap (NM002-compliant): point persist at tmp.
+    original = os.environ.get("SCITEX_AGENTIC_JOURNAL_HOME")
+    os.environ["SCITEX_AGENTIC_JOURNAL_HOME"] = str(tmp_path / "home")
+    try:
+        yield tmp_path / "home"
+    finally:
+        if original is None:
+            os.environ.pop("SCITEX_AGENTIC_JOURNAL_HOME", None)
+        else:
+            os.environ["SCITEX_AGENTIC_JOURNAL_HOME"] = original
 
 
 def _client():
@@ -224,7 +232,6 @@ def test_submit_route_reverses() -> None:
 # ----- plugin app page (views.index) ----
 
 
-import re as _re
 
 
 

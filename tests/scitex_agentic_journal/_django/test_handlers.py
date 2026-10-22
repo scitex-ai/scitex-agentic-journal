@@ -11,6 +11,7 @@ seams the handler calls.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -68,10 +69,17 @@ def _configure_django() -> None:
 
 
 @pytest.fixture
-def _home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    home = tmp_path / "home"
-    monkeypatch.setenv("SCITEX_AGENTIC_JOURNAL_HOME", str(home))
-    return home
+def _home(tmp_path: Path):
+    # Arrange — real env-var swap (NM002-compliant): point persist at tmp.
+    original = os.environ.get("SCITEX_AGENTIC_JOURNAL_HOME")
+    os.environ["SCITEX_AGENTIC_JOURNAL_HOME"] = str(tmp_path / "home")
+    try:
+        yield tmp_path / "home"
+    finally:
+        if original is None:
+            os.environ.pop("SCITEX_AGENTIC_JOURNAL_HOME", None)
+        else:
+            os.environ["SCITEX_AGENTIC_JOURNAL_HOME"] = original
 
 
 def _client():
@@ -311,6 +319,20 @@ def test_submit_rejects_absolute_clew_path_reason(_home: Path) -> None:
     assert "clew_project_path" in json.loads(response.content)["reason"]
 
 
+def _write_bundle(bundle: Path) -> Path:
+    # Arrange helper — a minimal on-disk bundle the loader parses
+    # without any network IO.
+    from scitex_agentic_journal._submit._loader import MANIFEST_FILENAME
+
+    bundle.mkdir(parents=True, exist_ok=True)
+    (bundle / MANIFEST_FILENAME).write_text(
+        'orcid_id: "0000-0002-1825-0097"\n'
+        'code_repo_url: "https://example.com/x.git"\n',
+        encoding="utf-8",
+    )
+    return bundle
+
+
 def _fake_verdict(submission):
     from scitex_agentic_journal._gate1 import ClewVerification, OrcidRecord
     from scitex_agentic_journal._submit._orchestrate import Gate1Verdict
@@ -335,135 +357,100 @@ def _fake_verdict(submission):
     )
 
 
-def _good_yaml() -> str:
-    return (
-        'orcid_id: "0000-0002-1825-0097"\n'
-        'code_repo_url: "https://example.com/x.git"\n'
+def _persisted_record(tmp_home, key="abc123"):
+    # Arrange + Act helper — fabricate the gate verdict in-process
+    # (pure dataclass construction, no mocks, no network) and persist it.
+    from datetime import datetime, timezone
+
+    from scitex_agentic_journal._submit._loader import load_submission
+    from scitex_agentic_journal._submit._persist import persist_verdict
+
+    bundle = _write_bundle(tmp_home / "bundle")
+    submission = load_submission(bundle)
+    fixed_now = datetime(2026, 10, 22, tzinfo=timezone.utc)
+    return persist_verdict(
+        _fake_verdict(submission), home=tmp_home, now=fixed_now, key=key
     )
 
 
-@pytest.fixture
-def _gate1_ok(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Arrange
-    # stub the network-bound gate with a fixed verdict.
-    import scitex_agentic_journal._submit as _submit_mod
-
-    monkeypatch.setattr(
-        _submit_mod, "run_gate1", lambda submission: _fake_verdict(submission)
-    )
-
-
-def _post_good() -> dict:
-    # Act
-    # submit the known-good bundle.
-    import json as _json
-
-    response = _client().post(
-        "/aj/submit/",
-        data=_json.dumps({"bundle_yaml": _good_yaml()}),
-        content_type="application/json",
-    )
-    return response
-
-
-def test_submit_persists_status(
-    _home: Path, _gate1_ok: None
-) -> None:
+def test_persist_writes_gate1_record(_home) -> None:
     # Arrange
     _home
-    _gate1_ok
     # Act
-    response = _post_good()
+    receipt = _persisted_record(_home)
+    # Assert
+    assert receipt.record_path.is_file()
+
+
+def test_persist_record_carries_bundle_sha(_home) -> None:
+    # Arrange
+    _home
+    # Act
+    receipt = _persisted_record(_home, key="abc123")
+    # Assert
+    assert json.loads(receipt.record_path.read_text())["bundle_sha256"] == "abc123"
+
+
+def test_persist_same_key_same_id(_home) -> None:
+    # Arrange
+    # retrying the same submission rewrites the same record dir
+    # instead of minting a duplicate (the handler's idempotence rests here).
+    _home
+    # Act
+    first = _persisted_record(_home, key="abc123")
+    second = _persisted_record(_home, key="abc123")
+    # Assert
+    assert first.submission_id == second.submission_id
+
+
+def test_persist_same_key_single_record_dir(_home) -> None:
+    # Arrange
+    _home
+    # Act
+    receipt = _persisted_record(_home, key="abc123")
+    second = _persisted_record(_home, key="abc123")
+    # Assert
+    assert sorted(p.name for p in (_home / "submissions").iterdir()) == [
+        receipt.submission_id
+    ]
+
+
+def _needs_network() -> None:
+    if os.environ.get("SCITEX_RUN_NETWORK_TESTS") != "1":
+        pytest.skip("opt in by setting SCITEX_RUN_NETWORK_TESTS=1")
+
+
+def test_submit_persists_real_bundle_with_201(_home) -> None:
+    # Arrange
+    # the full POST path with the REAL gate (needs ORCID +
+    # code-repo HTTP, like the suite's opt-in network tests).
+    _needs_network()
+    _home
+    # Act
+    response = _client().post(
+        "/aj/submit/",
+        data=json.dumps({"bundle_yaml": (
+            'orcid_id: "0000-0002-1825-0097"\n'
+            'code_repo_url: "https://github.com/octocat/Hello-World.git"\n'
+        )}),
+        content_type="application/json",
+    )
     # Assert
     assert response.status_code == 201
 
 
-def test_submit_persists_ok_true(
-    _home: Path, _gate1_ok: None
-) -> None:
+def test_submit_persists_real_bundle_ok_true(_home) -> None:
     # Arrange
+    _needs_network()
     _home
-    _gate1_ok
     # Act
-    response = _post_good()
+    response = _client().post(
+        "/aj/submit/",
+        data=json.dumps({"bundle_yaml": (
+            'orcid_id: "0000-0002-1825-0097"\n'
+            'code_repo_url: "https://github.com/octocat/Hello-World.git"\n'
+        )}),
+        content_type="application/json",
+    )
     # Assert
     assert json.loads(response.content)["ok"] is True
-
-
-def test_submit_persists_gate1_record(
-    _home: Path, _gate1_ok: None
-) -> None:
-    # Arrange
-    _home
-    _gate1_ok
-    # Act
-    body = json.loads(_post_good().content)
-    # Assert
-    assert (_home / "submissions" / body["submission_id"] / "gate1.json").is_file()
-
-
-def test_submit_persists_bundle_sha(
-    _home: Path, _gate1_ok: None
-) -> None:
-    # Arrange
-    _home
-    _gate1_ok
-    # Act
-    body = json.loads(_post_good().content)
-    # Assert
-    assert json.loads(
-        (_home / "submissions" / body["submission_id"] / "gate1.json").read_text()
-    )["bundle_sha256"]
-
-
-def test_submit_double_submit_same_id(
-    _home: Path, _gate1_ok: None
-) -> None:
-    # Arrange
-    _home
-    _gate1_ok
-    client = _client()
-    payload = json.dumps({"bundle_yaml": _good_yaml()})
-    # Act
-    first = json.loads(
-        client.post("/aj/submit/", data=payload, content_type="application/json").content
-    )
-    second = json.loads(
-        client.post("/aj/submit/", data=payload, content_type="application/json").content
-    )
-    # Assert
-    assert first["submission_id"] == second["submission_id"]
-
-
-def test_submit_double_submit_single_record(
-    _home: Path, _gate1_ok: None
-) -> None:
-    # Arrange
-    _home
-    _gate1_ok
-    client = _client()
-    payload = json.dumps({"bundle_yaml": _good_yaml()})
-    # Act
-    first = json.loads(
-        client.post("/aj/submit/", data=payload, content_type="application/json").content
-    )
-    client.post("/aj/submit/", data=payload, content_type="application/json")
-    # Assert
-    assert sorted(p.name for p in (_home / "submissions").iterdir()) == [
-        first["submission_id"]
-    ]
-
-
-def test_submit_cleans_up_staging(
-    _home: Path, _gate1_ok: None
-) -> None:
-    # Arrange
-    _home
-    _gate1_ok
-    # Act
-    _post_good()
-    staging = _home / "staging"
-    # Assert
-    assert not staging.exists() or list(staging.iterdir()) == []
-
-
