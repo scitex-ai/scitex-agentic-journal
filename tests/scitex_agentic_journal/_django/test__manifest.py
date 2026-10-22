@@ -44,7 +44,8 @@ def test_manifest_path_points_to_manifest_json() -> None:
 
 
 def test_manifest_loads_with_required_keys() -> None:
-    # Arrange — the SDK's required six (MANIFEST_REQUIRED_KEYS).
+    # Arrange
+    # the SDK's required six (MANIFEST_REQUIRED_KEYS).
     expected_keys = {
         "name",
         "slug",
@@ -60,7 +61,8 @@ def test_manifest_loads_with_required_keys() -> None:
 
 
 def test_manifest_declares_no_version() -> None:
-    # Arrange — hand-written `version` is FORBIDDEN (drifts from the
+    # Arrange
+    # hand-written `version` is FORBIDDEN (drifts from the
     # installed dist; the version derives from `pip_package`).
     # Act
     body = load_manifest()
@@ -85,7 +87,8 @@ def test_manifest_pip_package_is_this_dist() -> None:
 
 
 def test_manifest_name_uses_app_suffix() -> None:
-    # Arrange — SDK advisory: `name` ends with `_app` / `-app`.
+    # Arrange
+    # SDK advisory: `name` ends with `_app` / `-app`.
     # Act
     body = load_manifest()
     # Assert
@@ -137,7 +140,8 @@ def test_manifest_rejects_unknown_scope(tmp_path: Path) -> None:
 
 
 def test_manifest_matches_sdk_validator_when_sdk_present() -> None:
-    # Arrange — the SDK's own validator is authoritative; our mirror
+    # Arrange
+    # the SDK's own validator is authoritative; our mirror
     # must agree with it wherever the SDK is installed.
     scitex_sdk = pytest.importorskip("scitex_sdk.app.appmaker._validate._manifest")
     # Act
@@ -248,7 +252,8 @@ def test_app_config_name_matches_app_name() -> None:
 
 
 def test_app_config_prefers_sdk_base() -> None:
-    # Arrange — guarded import: SDK base where installed, plain
+    # Arrange
+    # guarded import: SDK base where installed, plain
     # Django AppConfig where it isn't (this container).
     from django.apps import AppConfig
     from scitex_agentic_journal._django.apps import (
@@ -306,7 +311,8 @@ def test_urls_reverse_decision_record() -> None:
 
 
 def test_handler_submit_rejects_empty_post_without_traceback() -> None:
-    # Arrange — POST with no JSON body must 400, never 503, never raise.
+    # Arrange
+    # POST with no JSON body must 400, never 503, never raise.
     from django.test import RequestFactory
     from scitex_agentic_journal._django.handlers import submit
 
@@ -330,17 +336,47 @@ def test_view_submissions_index_returns_placeholder_flag() -> None:
     assert body["placeholder"] is True
 
 
-def test_root_url_serves_gui_not_json() -> None:
-    # Arrange — the app URL must render the human GUI; raw JSON at
+def _root_response():
+    # Arrange + Act — the app URL must render the human GUI; raw JSON at
     # the root is what the operator flagged (screenshot 20261020).
     from django.test import Client
     from django.urls import reverse
 
-    # Act
     url = reverse("scitex_agentic_journal:index")
-    response = Client().get(url)
+    return url, Client().get(url)
+
+
+def test_root_url_resolves_to_app() -> None:
+    # Arrange
+    url, _ = _root_response()
+    # Act
+    path = url
     # Assert
-    assert url == "/aj/"
-    assert response.status_code == 200
-    assert response["Content-Type"].startswith("text/html")
-    assert b"Agentic Journal" in response.content
+    assert path == "/aj/"
+
+
+def test_root_url_status_ok() -> None:
+    # Arrange
+    _, response = _root_response()
+    # Act
+    code = response.status_code
+    # Assert
+    assert code == 200
+
+
+def test_root_url_serves_html() -> None:
+    # Arrange
+    _, response = _root_response()
+    # Act
+    content_type = response["Content-Type"]
+    # Assert
+    assert content_type.startswith("text/html")
+
+
+def test_root_url_brands_journal() -> None:
+    # Arrange
+    _, response = _root_response()
+    # Act
+    content = response.content
+    # Assert
+    assert b"Agentic Journal" in content
