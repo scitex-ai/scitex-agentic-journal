@@ -109,6 +109,18 @@ def test_app_page_lists_persisted_submission(_home: Path) -> None:
     assert "accept" in body
 
 
+def test_app_page_mounts_shared_app_header_without_leaf_h1(_home: Path) -> None:
+    # Identical-row contract + Django comment discipline: the app row is the
+    # shared mount (title from the manifest label), never a leaf <h1>; and
+    # template comments must use {% comment %} blocks — Django only strips
+    # single-line {# #}, so a multi-line {# #} would leak raw into the page
+    # (measured 2026-10-22: it did).
+    body = _client().get("/aj/app/").content.decode("utf-8")
+    assert '<div data-stx-app-header data-app-title="Agentic Journal">' in body
+    assert "<h1" not in body
+    assert "{#" not in body
+
+
 def test_app_page_template_extends_sdk_shell() -> None:
     # Contract anchor independent of rendering: the template extends
     # exactly the SDK shell and fills exactly `scitex_app_content`.

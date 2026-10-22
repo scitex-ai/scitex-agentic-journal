@@ -10,10 +10,14 @@ use the JSON endpoints (`archive/`, `submissions/<id>/`, …); this
 page is the human-readable mirror of the same `_leaf` payloads.
 {% endcomment %}
 {% block scitex_app_content %}
-{# Shared AppHeader row (data-stx-app-header mount): identical title row
-   across every leaf. No project picker here: this journal is a single
-   user-scoped archive with no project switching, and no leaf-local <h1>
-   duplicating the app title. #}
+{% comment %}
+Shared AppHeader row (data-stx-app-header mount): identical title row
+across every leaf. No project picker here: this journal is a single
+user-scoped archive with no project switching, and no leaf-local h1
+duplicating the app title. (NOTE: this must be a {% comment %} block,
+not {# #}: Django only strips single-line {# #} comments, so a
+multi-line {# #} would leak raw into the page.)
+{% endcomment %}
 <link rel="stylesheet" href="{% static 'scitex_sdk/ui/css/app/app-header.css' %}">
 <div data-stx-app-header data-app-title="Agentic Journal"></div>
 <script type="module" src="{% static 'scitex_sdk/ui/js/app/app-header.js' %}"></script>
