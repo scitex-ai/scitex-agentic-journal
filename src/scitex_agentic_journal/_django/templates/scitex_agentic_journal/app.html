@@ -1,5 +1,5 @@
 {% extends "scitex_sdk/app/app_shell.html" %}
-{% comment %}
+{% load static %}{% comment %}
 Agentic Journal plugin page (server-rendered leaf).
 
 Extends the SDK app shell and fills only `scitex_app_content` — the
@@ -10,8 +10,14 @@ use the JSON endpoints (`archive/`, `submissions/<id>/`, …); this
 page is the human-readable mirror of the same `_leaf` payloads.
 {% endcomment %}
 {% block scitex_app_content %}
+{# Shared AppHeader row (data-stx-app-header mount): identical title row
+   across every leaf. No project picker here: this journal is a single
+   user-scoped archive with no project switching, and no leaf-local <h1>
+   duplicating the app title. #}
+<link rel="stylesheet" href="{% static 'scitex_sdk/ui/css/app/app-header.css' %}">
+<div data-stx-app-header data-app-title="Agentic Journal"></div>
+<script type="module" src="{% static 'scitex_sdk/ui/js/app/app-header.js' %}"></script>
 <main class="aj-page">
-  <h1>Agentic Journal</h1>
   <p>AI-reviewed open publishing on top of Clew.</p>
   {% if placeholder %}
   <p>No submissions yet. Submit a bundle to open the journal.</p>
