@@ -49,8 +49,34 @@ class ExampleUnavailable(FileNotFoundError):
     """The example bundle is not installed where the loader looked."""
 
 
+#: Operator's user-space checkout on compute-03 — the documented fleet
+#: location of the shared example project. Last resort only: the env
+#: var wins, then the process home. ``$SCITEX_FLEET_HOME`` (default
+#: ``/home/ywatanabe``) keeps the fallback testable off-fleet.
+#: Graceful 404 everywhere else.
+def _fleet_fallback_bundle_dir() -> Path:
+    return Path(os.environ.get("SCITEX_FLEET_HOME", "/home/ywatanabe")) / "proj" / EXAMPLE_SUBMISSION_ID
+
+
+def _candidate_bundle_dirs() -> list[Path]:
+    """Where the example project may live, in priority order."""
+    candidates = []
+    explicit = os.environ.get(EXAMPLE_BUNDLE_ENV)
+    if explicit:
+        candidates.append(Path(explicit).expanduser())
+    candidates.append(Path.home() / "proj" / EXAMPLE_SUBMISSION_ID)
+    fallback = _fleet_fallback_bundle_dir()
+    if fallback not in candidates:
+        candidates.append(fallback)
+    return candidates
+
+
 def default_example_bundle_dir() -> Path:
-    """Where the example project lives: env override, else ``~/proj``."""
+    """First existing candidate, else the primary default (for errors)."""
+    candidates = _candidate_bundle_dirs()
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate
     explicit = os.environ.get(EXAMPLE_BUNDLE_ENV)
     if explicit:
         return Path(explicit).expanduser()
@@ -80,8 +106,9 @@ def load_example_project(
     """
     bundle = Path(bundle_dir).expanduser() if bundle_dir is not None else default_example_bundle_dir()
     if not bundle.is_dir():
+        tried = ", ".join(str(p) for p in _candidate_bundle_dirs())
         raise ExampleUnavailable(
-            f"example bundle not found at {bundle} — set "
+            f"example bundle not found at {bundle} (tried: {tried}) — set "
             f"${EXAMPLE_BUNDLE_ENV} to the {EXAMPLE_SUBMISSION_ID} "
             "checkout, or create it there."
         )

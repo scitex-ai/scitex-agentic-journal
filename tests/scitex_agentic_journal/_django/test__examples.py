@@ -100,6 +100,31 @@ def test_load_example_missing_bundle_raises(tmp_path: Path) -> None:
         _examples.load_example_project(missing, home=tmp_path / "home")
 
 
+def test_default_bundle_dir_falls_back_to_home_proj(tmp_path: Path) -> None:
+    # Arrange — real env-var swap (NM002-compliant): HOME carries the
+    # example project, no explicit bundle override wins over nothing.
+    import os as _os
+
+    bundle = tmp_path / "proj" / "example-project-mnist"
+    bundle.mkdir(parents=True)
+    (bundle / "bundle.yaml").write_text(
+        "orcid_id: '0000-0000-0000-0000'\n"
+        "code_repo_url: 'https://example.invalid/mnist.git'\n",
+        encoding="utf-8",
+    )
+    saved = dict(_os.environ)
+    _os.environ.pop("SCITEX_AGENTIC_JOURNAL_EXAMPLE_BUNDLE", None)
+    _os.environ["HOME"] = str(tmp_path)
+    try:
+        # Act
+        found = _examples.default_example_bundle_dir()
+    finally:
+        _os.environ.clear()
+        _os.environ.update(saved)
+    # Assert
+    assert found == bundle
+
+
 def test_load_example_malformed_bundle_raises(tmp_path: Path) -> None:
     # Arrange
     bundle = tmp_path / "bad-bundle"

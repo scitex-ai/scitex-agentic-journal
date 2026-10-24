@@ -516,9 +516,15 @@ def test_load_example_rejects_get(_home: Path) -> None:
 
 def test_load_example_missing_bundle_is_404(_home: Path, tmp_path: Path) -> None:
     # Arrange
+    # all three candidates miss: explicit env, HOME/proj, and the
+    # fleet fallback (redirected off-host via $SCITEX_FLEET_HOME).
     _home
-    original = os.environ.get("SCITEX_AGENTIC_JOURNAL_EXAMPLE_BUNDLE")
+    empty_home = tmp_path / "emptyhome"
+    empty_home.mkdir(parents=True)
+    original = dict(os.environ)
     os.environ["SCITEX_AGENTIC_JOURNAL_EXAMPLE_BUNDLE"] = str(tmp_path / "no-such-bundle")
+    os.environ["HOME"] = str(empty_home)
+    os.environ["SCITEX_FLEET_HOME"] = str(empty_home)
     try:
         # Act
         response = _client().post(
@@ -527,10 +533,8 @@ def test_load_example_missing_bundle_is_404(_home: Path, tmp_path: Path) -> None
             content_type="application/json",
         )
     finally:
-        if original is None:
-            os.environ.pop("SCITEX_AGENTIC_JOURNAL_EXAMPLE_BUNDLE", None)
-        else:
-            os.environ["SCITEX_AGENTIC_JOURNAL_EXAMPLE_BUNDLE"] = original
+        os.environ.clear()
+        os.environ.update(original)
     # Assert
     assert response.status_code == 404
 
