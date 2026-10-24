@@ -1,11 +1,8 @@
-"""No-mocks tests for the ``scitex-agentic-journal gui`` subcommand.
+"""No-mocks tests for the ``scitex-agentic-journal gui`` group.
 
-Covers the SDK-canonical standalone-launcher surface (mirrors what
-``scitex-sdk app init`` scaffolds):
-
-1. Subcommand registration + ``--help`` documents the flags
-2. ``--help`` exits zero and names the SDK behaviours (exact port,
-   ``--force`` ownership rule)
+Covers the canonical §12 shape (``gui {open,serve,status,stop}``):
+group registration, verb coverage, and flag placement (``--force``
+on serve, ``--no-browser`` on open only, never on serve).
 
 Real CliRunner — no mocks. The server itself is never started here;
 that path is owned by ``scitex_sdk.app.embed.serve_gui`` /
@@ -20,11 +17,11 @@ from scitex_agentic_journal._cli import main as cli
 
 
 # ──────────────────────────────────────────────────────────────────
-# Subcommand registration + help
+# Group registration + verb coverage
 # ──────────────────────────────────────────────────────────────────
 
 
-def test_gui_subcommand_is_registered() -> None:
+def test_gui_group_is_registered() -> None:
     # Arrange
     # Act
     commands = cli.commands
@@ -50,28 +47,96 @@ def test_gui_help_exits_zero() -> None:
     assert result.exit_code == 0
 
 
-def test_gui_help_documents_port_flag() -> None:
+def test_gui_help_lists_open_verb() -> None:
     # Arrange
     runner = CliRunner()
     # Act
     result = runner.invoke(cli, ["gui", "--help"])
+    # Assert
+    assert "open" in result.output
+
+
+def test_gui_help_lists_serve_verb() -> None:
+    # Arrange
+    runner = CliRunner()
+    # Act
+    result = runner.invoke(cli, ["gui", "--help"])
+    # Assert
+    assert "serve" in result.output
+
+
+def test_gui_help_lists_status_verb() -> None:
+    # Arrange
+    runner = CliRunner()
+    # Act
+    result = runner.invoke(cli, ["gui", "--help"])
+    # Assert
+    assert "status" in result.output
+
+
+def test_gui_help_lists_stop_verb() -> None:
+    # Arrange
+    runner = CliRunner()
+    # Act
+    result = runner.invoke(cli, ["gui", "--help"])
+    # Assert
+    assert "stop" in result.output
+
+
+# ──────────────────────────────────────────────────────────────────
+# Flag placement (serve: headless; open: browser-launching)
+# ──────────────────────────────────────────────────────────────────
+
+
+def test_serve_help_documents_port_flag() -> None:
+    # Arrange
+    runner = CliRunner()
+    # Act
+    result = runner.invoke(cli, ["gui", "serve", "--help"])
     # Assert
     assert "--port" in result.output
 
 
-def test_gui_help_documents_force_flag() -> None:
+def test_serve_help_documents_force_flag() -> None:
     # Arrange
     runner = CliRunner()
     # Act
-    result = runner.invoke(cli, ["gui", "--help"])
+    result = runner.invoke(cli, ["gui", "serve", "--help"])
     # Assert
     assert "--force" in result.output
 
 
-def test_gui_help_documents_no_browser_flag() -> None:
+def test_serve_help_has_no_browser_flag() -> None:
     # Arrange
     runner = CliRunner()
     # Act
-    result = runner.invoke(cli, ["gui", "--help"])
+    result = runner.invoke(cli, ["gui", "serve", "--help"])
+    # Assert
+    assert "--no-browser" not in result.output
+
+
+def test_open_help_documents_no_browser_flag() -> None:
+    # Arrange
+    runner = CliRunner()
+    # Act
+    result = runner.invoke(cli, ["gui", "open", "--help"])
     # Assert
     assert "--no-browser" in result.output
+
+
+def test_status_help_documents_json_flag() -> None:
+    # Arrange
+    runner = CliRunner()
+    # Act
+    result = runner.invoke(cli, ["gui", "status", "--help"])
+    # Assert
+    assert "--json" in result.output
+
+
+def test_stop_help_documents_yes_flag() -> None:
+    # Arrange
+    runner = CliRunner()
+    # Act
+    result = runner.invoke(cli, ["gui", "stop", "--help"])
+    # Assert
+    assert "--yes" in result.output

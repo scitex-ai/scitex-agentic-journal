@@ -29,6 +29,7 @@ import pytest
 # `_cli.py` to add `<TAB>` completion to the console script.
 CROSS_PACKAGE_IMPORTS: list[str] = [
     "scitex_dev._cli._completion",
+    "scitex_sdk.app",
     "scitex_sdk.app.embed",
 ]
 
