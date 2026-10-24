@@ -31,6 +31,57 @@ Listed here so docs / dashboards can show "wired but not yet
 implemented" rather than 404 / silently 200.
 """
 
+EXAMPLE_LOAD_SUFFIX = "examples/example-project-mnist/load/"
+"""URL suffix of the demo-content loader, relative to the app mount."""
+
+
+def _is_json_request(request: HttpRequest) -> bool:
+    return (request.content_type or "").split(";")[0].strip() == "application/json"
+
+
+def load_example(request: HttpRequest) -> JsonResponse:
+    """POST the demo bundle into the archive as labeled example content.
+
+    Loads ``example-project-mnist`` (``$SCITEX_AGENTIC_JOURNAL_EXAMPLE_BUNDLE``
+    or ``~/proj/example-project-mnist``) through
+    :func:`scitex_agentic_journal._django._examples.load_example_project`:
+    the real manifest is validated and real-shaped Gate-1 / decision /
+    persistent-id records are written, every one carrying
+    ``"example": true``. Idempotent — reloading rewrites the same
+    record dir (hub double-submit rule).
+
+    Status contract (no tracebacks, always a response):
+
+    * ``201`` ``{"ok": true, "submission_id": "example-project-mnist", ...}``
+      on JSON requests.
+    * ``303`` redirect to the app index on form posts (the empty-state
+      button), so the browser lands on the populated archive.
+    * ``405`` on non-POST.
+    * ``404`` when the example bundle is not installed server-side.
+    * ``422`` when the example bundle manifest is malformed.
+    """
+    from django.http import HttpResponseRedirect
+
+    from scitex_agentic_journal._django import _examples
+    from scitex_agentic_journal._submit import SubmissionLoadError
+
+    if request.method != "POST":
+        return _reject("method-not-allowed: use POST.", 405)
+    try:
+        receipt = _examples.load_example_project()
+    except _examples.ExampleUnavailable as exc:
+        return JsonResponse({"ok": False, "reason": str(exc)}, status=404)
+    except SubmissionLoadError as exc:
+        return JsonResponse(
+            {"ok": False, "reason": f"example bundle invalid: {exc}"}, status=422
+        )
+    if _is_json_request(request):
+        return JsonResponse({"ok": True, **receipt}, status=201)
+    index = request.path
+    if index.endswith(EXAMPLE_LOAD_SUFFIX):
+        index = index[: -len(EXAMPLE_LOAD_SUFFIX)]
+    return HttpResponseRedirect(index, status=303)
+
 _MAX_BUNDLE_YAML_BYTES: Final[int] = 256 * 1024
 """Largest accepted ``bundle_yaml`` body (256 KiB — manifests are small)."""
 

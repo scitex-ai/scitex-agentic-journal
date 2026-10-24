@@ -5,7 +5,7 @@
   "pip_package": "scitex-agentic-journal",
   "icon": "fas fa-book-open",
   "license": "AGPL-3.0",
-  "scope": "user",
+  "scope": "project",
   "description": "ARA-native AI-reviewed open publishing on top of Clew. Reviewer dashboard + submission gate UI.",
   "homepage": "https://github.com/ywatanabe1989/scitex-agentic-journal",
   "dependencies": {

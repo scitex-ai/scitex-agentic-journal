@@ -14,10 +14,67 @@ M2 / M3 persist real records.
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 from django.http import HttpRequest, JsonResponse
 from django.shortcuts import render
 
 from scitex_agentic_journal._django import _leaf
+from scitex_agentic_journal._django._manifest import load_manifest
+
+try:
+    from scitex_sdk.ui.branding import shell_context
+except ImportError as exc:  # scitex-sdk absent or below the GUI capability floor
+    raise ImportError(
+        "scitex_agentic_journal._django.views needs scitex-sdk>=0.3.9. "
+        "Install the journal package with its declared dependencies."
+    ) from exc
+
+try:
+    from scitex_ui.project_scope import (
+        LocalProjectProvider,
+        host_project_provider,
+        project_listing_view,
+        resolve_project,
+    )
+except ImportError as exc:  # scitex-ui absent — the header picker primitive
+    raise ImportError(
+        "scitex_agentic_journal._django.views needs scitex-ui, which is "
+        "installed alongside scitex-sdk. Reinstall scitex-agentic-journal "
+        "with its declared dependencies."
+    ) from exc
+
+
+def _projects_root() -> Path:
+    """Folder the standalone project picker lists.
+
+    ``SCITEX_AGENTIC_JOURNAL_PROJECTS_DIR`` wins (isolated CI runs,
+    operator demos); otherwise the journal's own user-space projects
+    dir. Every non-hidden folder is one project (SDK ``LocalProjectProvider``
+    contract, same as scholar's standalone fallback).
+    """
+    explicit = os.environ.get("SCITEX_AGENTIC_JOURNAL_PROJECTS_DIR")
+    if explicit:
+        return Path(explicit).expanduser()
+    scitex_root = Path(os.environ.get("SCITEX_DIR", "~/.scitex")).expanduser()
+    return scitex_root / "agentic-journal" / "projects"
+
+
+def _project_provider(request):
+    """Use the mounted host provider, or a local folder provider standalone."""
+    return host_project_provider() or LocalProjectProvider(_projects_root())
+
+
+# Shared scitex-ui GET-list / POST-remember endpoint (scholar pattern):
+# the picker JS talks here; request-time factory keeps mounted hosts
+# authoritative for permissions and project identity.
+project_scope = project_listing_view(_project_provider)
+
+
+def _app_scope() -> str:
+    """Manifest-declared scope — the template picker's single source of truth."""
+    return load_manifest().get("scope") or "user"
 
 
 def app_page(request: HttpRequest):
@@ -28,11 +85,34 @@ def app_page(request: HttpRequest):
     ``scitex_sdk/app/app_shell.html`` (block ``scitex_app_content``)
     per the SDK leaf contract; carries no ``{% url %}`` tags so the
     page stays correct under hub's mount prefix + namespace.
+
+    The header row is the shared SDK ``stx-app-header`` (no leaf h1)
+    with the SDK project picker; scope comes from the manifest.
     """
+    provider = _project_provider(request)
+    current_project = resolve_project(
+        request,
+        provider,
+        explicit=request.GET.get("project"),
+    )
+    # Form action for the empty-state example button: derived from the
+    # request's own path (prefix-agnostic under hub mounts, no {% url %}),
+    # valid from both the index ("") and the "app/" page routes.
+    page_path = request.path
+    if page_path.endswith("app/"):
+        page_path = page_path[: -len("app/")]
+    if not page_path.endswith("/"):
+        page_path += "/"
     return render(
         request,
         "scitex_agentic_journal/app.html",
-        _leaf.list_archive(),
+        {
+            **_leaf.list_archive(),
+            **shell_context("Agentic Journal"),
+            "app_scope": _app_scope(),
+            "current_project": current_project,
+            "example_load_url": page_path + "examples/example-project-mnist/load/",
+        },
     )
 
 from scitex_agentic_journal._django import _leaf

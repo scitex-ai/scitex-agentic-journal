@@ -1,5 +1,5 @@
 {% extends "scitex_sdk/app/app_shell.html" %}
-{% load static %}{% comment %}
+{% load i18n scitex_project_picker %}{% comment %}
 Agentic Journal plugin page (server-rendered leaf).
 
 Extends the SDK app shell and fills only `scitex_app_content` — the
@@ -9,22 +9,34 @@ mounts this urlconf under its own namespace/prefix
 use the JSON endpoints (`archive/`, `submissions/<id>/`, …); this
 page is the human-readable mirror of the same `_leaf` payloads.
 {% endcomment %}
-{% block scitex_app_content %}
-{% comment %}
-Shared AppHeader row (data-stx-app-header mount): identical title row
-across every leaf. No project picker here: this journal is a single
-user-scoped archive with no project switching, and no leaf-local h1
-duplicating the app title. (NOTE: this must be a {% comment %} block,
-not {# #}: Django only strips single-line {# #} comments, so a
-multi-line {# #} would leak raw into the page.)
+{% block scitex_app_content %}{% comment %}
+One shared SDK header row (scholar pattern): the `stx-app-header`
+title span plus the SDK project-picker slot — no leaf-local h1, no
+JS header mount, no custom header. Scope comes from the manifest
+(`project`); the view resolves the current project via the mounted
+host provider (standalone: local projects folder). (NOTE: this must
+be a {% comment %} block, not {# #}: Django only strips single-line
+{# #} comments, so a multi-line {# #} would leak raw into the page.)
 {% endcomment %}
-<link rel="stylesheet" href="{% static 'scitex_sdk/ui/css/app/app-header.css' %}">
-<div data-stx-app-header data-app-title="Agentic Journal"></div>
-<script type="module" src="{% static 'scitex_sdk/ui/js/app/app-header.js' %}"></script>
+<header class="stx-app-header">
+  <span class="stx-app-header__title">{% trans "SciTeX Agentic Journal" %}</span>
+  <div class="stx-app-header__slot--project-selector">
+    {% scitex_project_picker scope=app_scope current=current_project %}
+  </div>
+</header>
 <main class="aj-page">
   <p>AI-reviewed open publishing on top of Clew.</p>
   {% if placeholder %}
   <p>No submissions yet. Submit a bundle to open the journal.</p>
+  <div>
+    <p>Or explore with the shared demo project <strong>example-project-mnist</strong>
+    (handwritten-digit recognition, MNIST) — loads a labeled demo submission
+    through the same records a Gate-1 pass persists.</p>
+    <form method="post" action="{{ example_load_url }}">
+      {% csrf_token %}
+      <button type="submit">Load example-project-mnist</button>
+    </form>
+  </div>
   {% else %}
   <table>
     <thead>

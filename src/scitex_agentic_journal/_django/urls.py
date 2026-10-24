@@ -18,8 +18,14 @@ urlpatterns = [
     path("", views.app_page, name="index"),
     path("app/", views.app_page, name="app-page"),
     path("submit/", handlers.submit, name="submit"),
+    path("api/projects", views.project_scope, name="project_scope"),
     path("archive/", views.archive_view, name="archive"),
     path("dashboard/", views.decision_dashboard_view, name="decision-dashboard"),
+    path(
+        "examples/example-project-mnist/load/",
+        handlers.load_example,
+        name="example-load",
+    ),
     path(
         "submissions/<str:submission_id>/",
         views.submission_detail,

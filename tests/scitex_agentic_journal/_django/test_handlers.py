@@ -454,3 +454,106 @@ def test_submit_persists_real_bundle_ok_true(_home) -> None:
     )
     # Assert
     assert json.loads(response.content)["ok"] is True
+
+
+# ----- example loader handler ------------------------------------------------
+
+
+@pytest.fixture
+def _example_bundle(tmp_path: Path):
+    # Arrange — real env-var swap (NM002-compliant): point the demo
+    # bundle at a tmp checkout with a valid manifest.
+    original = os.environ.get("SCITEX_AGENTIC_JOURNAL_EXAMPLE_BUNDLE")
+    bundle = tmp_path / "example-project-mnist"
+    bundle.mkdir(parents=True)
+    (bundle / "bundle.yaml").write_text(
+        "orcid_id: '0000-0000-0000-0000'\n"
+        "code_repo_url: 'https://example.invalid/mnist.git'\n",
+        encoding="utf-8",
+    )
+    os.environ["SCITEX_AGENTIC_JOURNAL_EXAMPLE_BUNDLE"] = str(bundle)
+    try:
+        yield bundle
+    finally:
+        if original is None:
+            os.environ.pop("SCITEX_AGENTIC_JOURNAL_EXAMPLE_BUNDLE", None)
+        else:
+            os.environ["SCITEX_AGENTIC_JOURNAL_EXAMPLE_BUNDLE"] = original
+
+
+def test_load_example_json_returns_submission_id(_home: Path, _example_bundle: Path) -> None:
+    # Arrange
+    _home
+    _example_bundle
+    # Act
+    body = json.loads(
+        _client()
+        .post("/aj/examples/example-project-mnist/load/", data="{}", content_type="application/json")
+        .content
+    )
+    # Assert
+    assert body.get("submission_id") == "example-project-mnist"
+
+
+def test_load_example_form_redirects_to_index(_home: Path, _example_bundle: Path) -> None:
+    # Arrange
+    _home
+    _example_bundle
+    # Act
+    response = _client().post("/aj/examples/example-project-mnist/load/")
+    # Assert
+    assert (response.status_code, response["Location"]) == (303, "/aj/")
+
+
+def test_load_example_rejects_get(_home: Path) -> None:
+    # Arrange
+    _home
+    # Act
+    response = _client().get("/aj/examples/example-project-mnist/load/")
+    # Assert
+    assert response.status_code == 405
+
+
+def test_load_example_missing_bundle_is_404(_home: Path, tmp_path: Path) -> None:
+    # Arrange
+    _home
+    original = os.environ.get("SCITEX_AGENTIC_JOURNAL_EXAMPLE_BUNDLE")
+    os.environ["SCITEX_AGENTIC_JOURNAL_EXAMPLE_BUNDLE"] = str(tmp_path / "no-such-bundle")
+    try:
+        # Act
+        response = _client().post(
+            "/aj/examples/example-project-mnist/load/",
+            data="{}",
+            content_type="application/json",
+        )
+    finally:
+        if original is None:
+            os.environ.pop("SCITEX_AGENTIC_JOURNAL_EXAMPLE_BUNDLE", None)
+        else:
+            os.environ["SCITEX_AGENTIC_JOURNAL_EXAMPLE_BUNDLE"] = original
+    # Assert
+    assert response.status_code == 404
+
+
+def test_load_example_malformed_bundle_is_422(_home: Path, tmp_path: Path) -> None:
+    # Arrange
+    _home
+    bundle = tmp_path / "bad-bundle"
+    bundle.mkdir(parents=True)
+    (bundle / "bundle.yaml").write_text("orcid_id: ''\n", encoding="utf-8")
+    original = os.environ.get("SCITEX_AGENTIC_JOURNAL_EXAMPLE_BUNDLE")
+    os.environ["SCITEX_AGENTIC_JOURNAL_EXAMPLE_BUNDLE"] = str(bundle)
+    try:
+        # Act
+        response = _client().post(
+            "/aj/examples/example-project-mnist/load/",
+            data="{}",
+            content_type="application/json",
+        )
+    finally:
+        if original is None:
+            os.environ.pop("SCITEX_AGENTIC_JOURNAL_EXAMPLE_BUNDLE", None)
+        else:
+            os.environ["SCITEX_AGENTIC_JOURNAL_EXAMPLE_BUNDLE"] = original
+    # Assert
+    assert response.status_code == 422

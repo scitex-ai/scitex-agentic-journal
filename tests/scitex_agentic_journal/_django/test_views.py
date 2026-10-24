@@ -290,6 +290,24 @@ def test_app_page_shows_empty_state(_home: Path) -> None:
     assert "No submissions yet" in body
 
 
+def test_app_page_empty_state_names_example_project(_home: Path) -> None:
+    # Arrange
+    _home
+    # Act
+    body = _body()
+    # Assert
+    assert "example-project-mnist" in body
+
+
+def test_app_page_empty_state_form_posts_to_loader(_home: Path) -> None:
+    # Arrange
+    _home
+    # Act
+    body = _body()
+    # Assert
+    assert 'action="/aj/examples/example-project-mnist/load/"' in body
+
+
 def test_app_page_renders_sdk_favicon(_home: Path) -> None:
     # Arrange
     # the shared favicon from `_branding_head.html` proves the
@@ -330,13 +348,102 @@ def test_app_page_lists_persisted_verdict(_persisted: Path) -> None:
 
 def test_app_page_mounts_shared_app_header(_home: Path) -> None:
     # Arrange
-    # identical-row contract: the app row is the shared mount
-    # (title from the manifest label), never a leaf <h1>.
+    # shared SDK header row (server-rendered, scholar pattern) —
+    # one row with the title span plus the picker slot.
     _home
     # Act
     body = _body()
     # Assert
-    assert '<div data-stx-app-header data-app-title="Agentic Journal">' in body
+    assert '<header class="stx-app-header">' in body
+
+
+def test_app_page_header_shows_title(_home: Path) -> None:
+    # Arrange
+    _home
+    # Act
+    body = _body()
+    # Assert
+    assert "SciTeX Agentic Journal" in body
+
+
+def test_app_page_header_has_picker_slot(_home: Path) -> None:
+    # Arrange
+    _home
+    # Act
+    body = _body()
+    # Assert
+    assert "stx-app-header__slot--project-selector" in body
+
+
+def test_app_page_has_no_js_header_mount(_home: Path) -> None:
+    # Arrange
+    # the JS-mount div was the duplicated header — server markup only.
+    _home
+    # Act
+    body = _body()
+    # Assert
+    assert "data-stx-app-header" not in body
+
+
+def test_app_page_template_wires_picker_tag() -> None:
+    # Arrange
+    source = _template_source()
+    # Act
+    wired = "scitex_project_picker" in source
+    # Assert
+    assert wired
+
+
+@pytest.fixture
+def _projects(tmp_path: Path):
+    # Arrange — real env-var swap (NM002-compliant): point the
+    # standalone picker at a tmp projects folder with one project.
+    original = os.environ.get("SCITEX_AGENTIC_JOURNAL_PROJECTS_DIR")
+    root = tmp_path / "projects"
+    (root / "example-project-mnist").mkdir(parents=True)
+    os.environ["SCITEX_AGENTIC_JOURNAL_PROJECTS_DIR"] = str(root)
+    try:
+        yield root
+    finally:
+        if original is None:
+            os.environ.pop("SCITEX_AGENTIC_JOURNAL_PROJECTS_DIR", None)
+        else:
+            os.environ["SCITEX_AGENTIC_JOURNAL_PROJECTS_DIR"] = original
+
+
+def test_project_scope_lists_local_projects(_projects: Path) -> None:
+    # Arrange
+    _projects
+    # Act
+    body = json.loads(_client().get("/aj/api/projects").content)
+    # Assert
+    assert [p["id"] for p in body["projects"]] == ["example-project-mnist"]
+
+
+def test_project_scope_post_remembers_project(_projects: Path) -> None:
+    # Arrange
+    _projects
+    # Act
+    body = json.loads(
+        _client()
+        .post(
+            "/aj/api/projects",
+            data=json.dumps({"id": "example-project-mnist"}),
+            content_type="application/json",
+        )
+        .content
+    )
+    # Assert
+    assert body["current"] == "example-project-mnist"
+
+
+def test_app_page_accepts_project_param(_projects: Path) -> None:
+    # Arrange
+    _projects
+    # Act
+    response = _client().get("/aj/app/?project=example-project-mnist")
+    # Assert
+    assert response.status_code == 200
 
 
 def test_app_page_has_no_leaf_h1(_home: Path) -> None:
