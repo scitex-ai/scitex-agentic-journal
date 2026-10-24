@@ -4,6 +4,13 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- `gui` is now the canonical group `gui {open,serve,status,stop}`
+  (doctrine 19_gui-commands.md §12; scholar-modeled Django + SDK-embed
+  wiring) instead of a bare leaf: `serve` stays foreground headless
+  with `--force` orphan-reclaim, `open` auto-serves detached then opens
+  the browser. Migration: `... gui --port N` → `... gui serve --port N`.
+
 ## [0.1.0a1] - 2026-10-19
 
 ### Fixed
