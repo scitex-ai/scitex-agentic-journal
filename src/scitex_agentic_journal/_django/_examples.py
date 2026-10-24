@@ -59,12 +59,21 @@ def _fleet_fallback_bundle_dir() -> Path:
 
 
 def _candidate_bundle_dirs() -> list[Path]:
-    """Where the example project may live, in priority order."""
+    """Where the example project may live, in priority order.
+
+    ``/example-project-mnist`` is the intended dev-service container
+    path (read-only mount to be added in hub ``docker_dev``, the
+    ``paper-scitex-clew`` precedent); the env var and process home
+    cover standalone runs, and the fleet fallback covers compute-03.
+    """
     candidates = []
     explicit = os.environ.get(EXAMPLE_BUNDLE_ENV)
     if explicit:
         candidates.append(Path(explicit).expanduser())
     candidates.append(Path.home() / "proj" / EXAMPLE_SUBMISSION_ID)
+    container = Path("/") / EXAMPLE_SUBMISSION_ID
+    if container not in candidates:
+        candidates.append(container)
     fallback = _fleet_fallback_bundle_dir()
     if fallback not in candidates:
         candidates.append(fallback)

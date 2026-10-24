@@ -125,6 +125,14 @@ def test_default_bundle_dir_falls_back_to_home_proj(tmp_path: Path) -> None:
     assert found == bundle
 
 
+def test_candidate_dirs_include_container_mount_point() -> None:
+    # Arrange
+    # Act
+    candidates = _examples._candidate_bundle_dirs()
+    # Assert
+    assert Path("/example-project-mnist") in candidates
+
+
 def test_load_example_malformed_bundle_raises(tmp_path: Path) -> None:
     # Arrange
     bundle = tmp_path / "bad-bundle"
