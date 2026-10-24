@@ -1,5 +1,5 @@
 {% extends "scitex_sdk/app/app_shell.html" %}
-{% load i18n scitex_project_picker %}{% comment %}
+{% load i18n scitex_project_picker static %}{% comment %}
 Agentic Journal plugin page (server-rendered leaf).
 
 Extends the SDK app shell and fills only `scitex_app_content` — the
@@ -24,6 +24,7 @@ be a {% comment %} block, not {# #}: Django only strips single-line
     {% scitex_project_picker scope=app_scope current=current_project %}
   </div>
 </header>
+<link rel="stylesheet" href="{% static 'scitex_agentic_journal/css/app.css' %}">
 <main class="aj-page">
   <p>AI-reviewed open publishing on top of Clew.</p>
   {% if placeholder %}

@@ -308,6 +308,33 @@ def test_app_page_empty_state_form_posts_to_loader(_home: Path) -> None:
     assert 'action="/aj/examples/example-project-mnist/load/"' in body
 
 
+def test_app_page_links_leaf_stylesheet(_home: Path) -> None:
+    # Arrange
+    _home
+    # Act
+    body = _body()
+    # Assert
+    assert "scitex_agentic_journal/css/app.css" in body
+
+
+def test_app_page_declares_panes_unused(_home: Path) -> None:
+    # Arrange
+    # the shell hides each side pane behind a ws-pane-unused marker;
+    # all three must carry it (scholar pattern: app is the whole page).
+    _home
+    # Act
+    body = _body()
+    # Assert
+    assert all(
+        marker in body
+        for marker in (
+            "ws-ai-pane ws-pane-unused",
+            "ws-worktree-pane ws-pane-unused",
+            "ws-viewer-pane ws-pane-unused",
+        )
+    )
+
+
 def test_app_page_renders_sdk_favicon(_home: Path) -> None:
     # Arrange
     # the shared favicon from `_branding_head.html` proves the

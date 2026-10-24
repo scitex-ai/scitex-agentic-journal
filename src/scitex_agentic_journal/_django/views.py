@@ -108,7 +108,10 @@ def app_page(request: HttpRequest):
         "scitex_agentic_journal/app.html",
         {
             **_leaf.list_archive(),
-            **shell_context("Agentic Journal"),
+            **shell_context(
+                "Agentic Journal",
+                panes={"ai": "unused", "files": "unused", "viewer": "unused"},
+            ),
             "app_scope": _app_scope(),
             "current_project": current_project,
             "example_load_url": page_path + "examples/example-project-mnist/load/",
