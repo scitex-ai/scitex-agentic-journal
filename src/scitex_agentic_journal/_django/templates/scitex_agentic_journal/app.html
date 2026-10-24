@@ -1,0 +1,68 @@
+{% extends "scitex_sdk/app/app_shell.html" %}
+{% load i18n scitex_project_picker static %}{% comment %}
+Agentic Journal plugin page (server-rendered leaf).
+
+Extends the SDK app shell and fills only `scitex_app_content` — the
+leaf owns no layout. No `{% url %}` tags and no absolute paths: hub
+mounts this urlconf under its own namespace/prefix
+(`journal-leaf`), so every link here would be wrong. Machine clients
+use the JSON endpoints (`archive/`, `submissions/<id>/`, …); this
+page is the human-readable mirror of the same `_leaf` payloads.
+{% endcomment %}
+{% block scitex_app_content %}{% comment %}
+One shared SDK header row (scholar pattern): the `stx-app-header`
+title span plus the SDK project-picker slot — no leaf-local h1, no
+JS header mount, no custom header. Scope comes from the manifest
+(`project`); the view resolves the current project via the mounted
+host provider (standalone: local projects folder). (NOTE: this must
+be a {% comment %} block, not {# #}: Django only strips single-line
+{# #} comments, so a multi-line {# #} would leak raw into the page.)
+{% endcomment %}
+<header class="stx-app-header">
+  <span class="stx-app-header__title">{% trans "SciTeX Agentic Journal" %}</span>
+  <div class="stx-app-header__slot--project-selector">
+    {% scitex_project_picker scope=app_scope current=current_project %}
+  </div>
+</header>
+<link rel="stylesheet" href="{% static 'scitex_agentic_journal/css/app.css' %}">
+<main class="aj-page">
+  <p>AI-reviewed open publishing on top of Clew.</p>
+  {% if placeholder %}
+  <p>No submissions yet. Submit a bundle to open the journal.</p>
+  <div>
+    <p>Or explore with the shared demo project <strong>example-project-mnist</strong>
+    (handwritten-digit recognition, MNIST) — loads a labeled demo submission
+    through the same records a Gate-1 pass persists.</p>
+    <form method="post" action="{{ example_load_url }}">
+      {% csrf_token %}
+      <button type="submit">Load example-project-mnist</button>
+    </form>
+  </div>
+  {% else %}
+  <table>
+    <thead>
+      <tr>
+        <th>Submission</th>
+        <th>Gate-1</th>
+        <th>Review</th>
+        <th>Decision</th>
+        <th>Verdict</th>
+        <th>Persistent ID</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in submissions %}
+      <tr>
+        <td>{{ row.submission_id }}</td>
+        <td>{{ row.has_gate1 }}</td>
+        <td>{{ row.has_review }}</td>
+        <td>{{ row.has_decision }}</td>
+        <td>{{ row.verdict|default:"—" }}</td>
+        <td>{{ row.persistent_id|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</main>
+{% endblock %}

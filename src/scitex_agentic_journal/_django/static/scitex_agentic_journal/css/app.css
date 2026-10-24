@@ -1,0 +1,36 @@
+/* Agentic Journal leaf content styles.
+ *
+ * The header row stays 100% SDK-owned (`stx-app-header` + picker) —
+ * this file styles only the leaf's own archive table and buttons.
+ * Theme-safe: every color goes through a shell variable with a
+ * neutral fallback, so the rules hold in dark and light mode.
+ * No outer margins: the shell owns the page gutter.
+ */
+
+.aj-page table {
+  border-collapse: collapse;
+  margin: 0;
+}
+
+.aj-page th,
+.aj-page td {
+  padding: 6px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--workspace-border-subtle, #3a3a3a);
+}
+
+.aj-page th {
+  font-weight: 600;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary, #a0a0a0);
+}
+
+.aj-page button {
+  background: transparent;
+  color: inherit;
+  border: 1px solid currentColor;
+  padding: 8px 16px;
+  cursor: pointer;
+}
