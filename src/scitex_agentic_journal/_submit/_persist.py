@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import hashlib
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -51,10 +52,17 @@ def _submission_home() -> Path:
     return Path.home() / ".scitex" / "agentic-journal"
 
 
-def _mint_submission_id(now: datetime | None = None) -> str:
+def _mint_submission_id(now: datetime | None = None, key: str | None = None) -> str:
     moment = now if now is not None else datetime.now(timezone.utc)
     date_part = moment.strftime("%Y_%m_%d")
-    rand_part = secrets.token_hex(3)  # 6 hex chars
+    if key is not None:
+        # Deterministic slot for a content fingerprint: retrying the
+        # same bundle rewrites the same record dir instead of minting
+        # a duplicate (hub double-submit rule). The 6-hex shape keeps
+        # the canonical `sub_YYYY_MM_DD_<hex>` format either way.
+        rand_part = hashlib.sha256(key.encode("utf-8")).hexdigest()[:6]
+    else:
+        rand_part = secrets.token_hex(3)  # 6 hex chars
     return f"sub_{date_part}_{rand_part}"
 
 
@@ -86,6 +94,7 @@ def persist_verdict(
     *,
     home: Path | None = None,
     now: datetime | None = None,
+    key: str | None = None,
 ) -> PersistedSubmission:
     """Mint a submission id, write the verdict as JSON, return the receipt.
 
@@ -100,6 +109,12 @@ def persist_verdict(
     now :
         Override the mint timestamp. Tests inject a deterministic
         value; production code passes ``None``.
+    key :
+        Optional content fingerprint (e.g. sha256 of the staged
+        bundle). When given, the id suffix derives deterministically
+        from it, so retrying the same submission rewrites the same
+        record dir instead of minting a duplicate. When ``None``
+        (the CLI default) the suffix stays random.
 
     Returns
     -------
@@ -107,7 +122,7 @@ def persist_verdict(
         Submission id + paths to the written record.
     """
     root = home if home is not None else _submission_home()
-    submission_id = _mint_submission_id(now=now)
+    submission_id = _mint_submission_id(now=now, key=key)
     record_dir = root / "submissions" / submission_id
     record_dir.mkdir(parents=True, exist_ok=True)
     record_path = record_dir / GATE1_RECORD_FILENAME
@@ -118,6 +133,8 @@ def persist_verdict(
         "minted_at_utc": (now or datetime.now(timezone.utc)).isoformat(),
         **_verdict_to_jsonable(verdict),
     }
+    if key is not None:
+        payload["bundle_sha256"] = key
     record_path.write_text(
         json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8"
     )
