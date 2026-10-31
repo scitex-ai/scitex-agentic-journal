@@ -5,6 +5,10 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- Require `scitex-sdk>=0.3.16`: the project-scope app header needs the
+  tolerant `scitex_project_picker` (renders the leaf local-folder
+  fallback with no host provider); 0.3.14/0.3.15 raise
+  `ImproperlyConfigured` and red the pytest matrix (PR #58).
 - `gui` is now the canonical group `gui {open,serve,status,stop}`
   (doctrine 19_gui-commands.md §12; scholar-modeled Django + SDK-embed
   wiring) instead of a bare leaf: `serve` stays foreground headless
