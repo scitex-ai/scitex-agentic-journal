@@ -1,7 +1,10 @@
 # Author portal contract
 
 The leaf owns the author guidance, templates, request handlers and filesystem
-records. It uses the SDK header, scope picker and content tabs. The host supplies
+records. Its in-app header is "SciTeX Agentic Journal"; the launcher and browser
+tab retain the short "Agentic Journal" label. Content cards and notices have
+square corners; controls and badges retain their own styles. It uses the SDK
+header, scope picker and content tabs. The host supplies
 authentication, CSRF and a generic `SCITEX_USER_HOME_PROVIDER` callable; the leaf
 has no Hub-model dependency or retired `scitex_ui` runtime dependency.
 

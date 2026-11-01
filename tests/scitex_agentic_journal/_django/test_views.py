@@ -383,7 +383,7 @@ def test_app_page_header_shows_title(_home: Path) -> None:
     # Act
     body = _body()
     # Assert
-    assert 'data-app-title="Agentic Journal"' in body
+    assert 'data-app-title="SciTeX Agentic Journal"' in body
 
 
 def test_user_scoped_header_opts_into_shared_scope_picker(_home: Path) -> None:
