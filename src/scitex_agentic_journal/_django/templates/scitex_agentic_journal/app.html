@@ -3,7 +3,7 @@
 {% block scitex_app_content %}
 <link rel="stylesheet" href="{% app_static 'scitex_sdk/ui/css/app/app-header.css' %}">
 <link rel="stylesheet" href="{% app_static 'scitex_sdk/ui/css/app/content-tabs.css' %}">
-<link rel="stylesheet" href="{% static 'scitex_agentic_journal/css/app.css' %}">
+<link rel="stylesheet" href="{% app_static 'scitex_agentic_journal/css/app.css' %}">
 <div data-stx-app-header data-app-title="{% trans 'Agentic Journal' %}" data-app-version="{{ app_version }}">
   {% scitex_project_picker scope=app_scope current=current_project allow_user_scope=True %}
 </div>
@@ -13,7 +13,7 @@
   <a id="journal-tab-{{ item.key }}" class="stx-content-tabs__tab" role="tab" aria-selected="{{ item.active|yesno:'true,false' }}" aria-controls="journal-content" tabindex="{% if item.active %}0{% else %}-1{% endif %}" href="?section={{ item.key }}">{{ item.label }}</a>
   {% endfor %}
 </nav>
-<main class="aj-page" id="journal-content" role="tabpanel" aria-labelledby="journal-tab-{{ section }}" tabindex="0">
+<section class="aj-page" id="journal-content" role="tabpanel" aria-labelledby="journal-tab-{{ section }}" tabindex="0">
 {% if section == "authors" %}
   <header class="aj-intro"><p class="aj-eyebrow">{% trans 'For authors' %}</p><h1>{% trans 'Make the evidence behind your research inspectable.' %}</h1><p>{% trans 'Bring the manuscript, code and claim-level evidence together. Follow your submission through the records produced by structural checks, review and decision workflows.' %}</p><div class="aj-actions"><a class="aj-action aj-action--primary" href="?section=prepare">{% trans 'Prepare your submission' %}</a><a class="aj-action" href="?section=archive">{% trans 'Your submissions' %}</a></div></header>
   {% if placeholder %}<section class="aj-card"><h2>{% trans 'No submissions yet' %}</h2><p>{% trans 'Use the preparation checklist to begin, or explore explicitly labeled example records.' %}</p><details><summary>{% trans 'Explore example-project-mnist' %}</summary><p>{% trans 'Example records are demonstration content, not an executed scientific assessment.' %}</p><form method="post" action="{{ example_load_url }}">{% csrf_token %}<button class="aj-action" type="submit" {% if not example_available %}disabled{% endif %}>{% trans 'Load example-project-mnist' %}</button></form>{% if not example_available %}<p>{% trans 'The example bundle is not installed for this service.' %}</p>{% endif %}</details></section>{% endif %}
@@ -59,6 +59,6 @@
   <h1>{% trans 'From decision to publication' %}</h1><p class="aj-lead">{% trans 'An acceptance decision is a recorded outcome, not proof that a paper has been published or a DOI registered.' %}</p>
   <div class="aj-grid"><section class="aj-card"><h2>{% trans 'Confirm the final research record' %}</h2><p>{% trans 'Check the manuscript, author details, figures, references and data/code access statements. Keep the files consistent with the accepted evidence.' %}</p></section><section class="aj-card"><h2>{% trans 'Inspect the configured handoff' %}</h2><p>{% trans 'Identifier minting and publication use separately configured backends. A missing identifier remains missing; no public registration is inferred from an intake pass or decision.' %}</p><p>{% trans 'Publishing is not available as a web action here. Consult the operator and the recorded publishing workflow.' %}</p></section></div>
 {% endif %}
-</main>
-<script type="module" src="{% static 'scitex_agentic_journal/js/author-portal.js' %}"></script>
+</section>
+<script type="module" src="{% app_static 'scitex_agentic_journal/js/author-portal.js' %}"></script>
 {% endblock %}

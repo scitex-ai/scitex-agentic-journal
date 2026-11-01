@@ -542,3 +542,25 @@ def test_app_page_route_reverses() -> None:
     url = reverse("scitex_agentic_journal:app-page")
     # Assert
     assert url.endswith("/app/")
+
+
+def test_portal_content_does_not_nest_main_landmarks(_home: Path) -> None:
+    # Arrange
+    _home
+    # Act
+    body = _body()
+    # Assert
+    assert body.count("<main") == 1 and '<section class="aj-page" id="journal-content" role="tabpanel"' in body
+
+
+def test_portal_assets_use_actual_sdk_content_fingerprints(_home: Path) -> None:
+    # Arrange
+    _home
+    from scitex_sdk.ui.templatetags.scitex_static import app_static
+
+    css = app_static("scitex_agentic_journal/css/app.css")
+    js = app_static("scitex_agentic_journal/js/author-portal.js")
+    # Act
+    body = _body()
+    # Assert
+    assert css in body and js in body and "?v=" in css and "?v=" in js
