@@ -10,6 +10,15 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
 
 ## [Unreleased]
 
+## [0.1.0a4] - 2026-11-01
+
+### Added
+
+- Register installed documentation/skills with the shared Dev dispatcher so discovery does not depend on a central package registry entry.
+- Document demo receipts, mounted archive scope and the source-certifiable SDK AppConfig boundary; repair missing README branding links with verified canonical assets.
+
+
+
 ## [0.1.0a2] - 2026-11-01
 
 ### Fixed

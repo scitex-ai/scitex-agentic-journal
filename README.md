@@ -5,7 +5,7 @@
 !-- --- -->
 
 <p align="center">
-  <img src="docs/assets/images/scitex-logo-blue-cropped.png" alt="SciTeX" width="320">
+  <img src="https://raw.githubusercontent.com/scitex-ai/scitex-sdk/main/docs/scitex-logo-blue-cropped.png" alt="SciTeX" width="320">
 </p>
 
 # SciTeX Agentic Journal (`scitex-agentic-journal`)
@@ -250,7 +250,7 @@ AGPL-3.0-only.
 ---
 
 <p align="center">
-  <img src="docs/assets/images/scitex-icon-blue.png" alt="SciTeX" width="64">
+  <img src="https://raw.githubusercontent.com/scitex-ai/scitex-dev/main/docs/scitex-icon-navy-inverted.png" alt="SciTeX" width="64">
   <br>
   <sub>Part of <a href="https://scitex.ai">SciTeX</a> — open, AI-reviewed publishing for science.</sub>
 </p>

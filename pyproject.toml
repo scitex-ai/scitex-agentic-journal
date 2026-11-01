@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scitex-agentic-journal"
-version = "0.1.0a3"
+version = "0.1.0a4"
 description = "ARA-native AI-reviewed open publishing on top of Clew. Part of SciTeX."
 readme = "README.md"
 license = "AGPL-3.0-only"
@@ -99,6 +99,12 @@ all = [
 mcp = [
     "fastmcp>=2.0",
 ]
+
+[project.entry-points."scitex_dev.docs"]
+scitex-agentic-journal = "scitex_agentic_journal"
+
+[project.entry-points."scitex_dev.skills"]
+scitex-agentic-journal = "scitex_agentic_journal"
 
 [project.scripts]
 scitex-agentic-journal = "scitex_agentic_journal._cli:main"
