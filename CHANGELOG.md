@@ -18,6 +18,9 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
 
 ### Fixed
 
+- Require SDK >=0.3.17 and explicitly declare the Journal header's request-local
+  user scope, preserving the host's remembered project while showing All projects.
+
 - Preserve uploaded inputs in independently checked durable snapshots before intake staging is removed; immutable retries retain subsequent reviews and decisions.
 - Stop returning fabricated passing validator checks, protect unexpected example content and record aliases, and remove the retired scitex-ui runtime dependency.
 

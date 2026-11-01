@@ -50,9 +50,9 @@ dependencies = [
     # Floor tracks the supervision line (figrecipe >=0.60.1); we run
     # 0.62.4.
     "scitex-dev>=0.62.4",
-    # Required SDK embed/GUI and canonical header/picker contract; the
-    # published 0.3.16 floor also supplies the app_static template tag.
-    "scitex-sdk>=0.3.16",
+    # Request-local user scope keeps this personal archive independent of
+    # the host's remembered project, without writing a global preference.
+    "scitex-sdk>=0.3.17",
     # CLI surface.
     "click>=8.0",
     # ORCID + DOI HTTP backends.

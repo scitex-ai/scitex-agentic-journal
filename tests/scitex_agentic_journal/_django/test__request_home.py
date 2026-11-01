@@ -207,3 +207,70 @@ def test_review_page_does_not_invent_missing_assessments(tmp_path):
         and "No review record has been written" in body
         and "No decision record has been written" in body
     )
+
+
+class UserOnlyProjectProvider:
+    """A real filesystem-backed host preference with a user-only app view."""
+
+    def list_projects(self, request):
+        from scitex_sdk.ui.project_scope import ProjectEntry
+
+        return [
+            ProjectEntry(
+                id="alice/paper",
+                name="Remembered paper",
+                disabled=True,
+                disabled_reason="This app works with your personal archive.",
+            )
+        ]
+
+    def last_visited(self, request):
+        return json.loads(request.fixture_profile.read_text())["project"]
+
+    def current_scope(self, request):
+        # The remembered project is unsupported by this user-only app. The
+        # host truthfully leaves its committed app selection unspecified.
+        return None
+
+    def remember(self, request, project_id):
+        request.fixture_profile.write_text(json.dumps({"project": project_id}))
+
+    def remember_scope(self, request, selection):
+        request.fixture_profile.write_text(
+            json.dumps({"scope": selection.scope, "project": selection.id})
+        )
+
+
+def test_explicit_user_view_preserves_host_project_and_unselected_protocol(tmp_path):
+    # Arrange
+    from scitex_sdk.ui.project_scope import scoped_project_listing_view
+
+    from scitex_agentic_journal._django.views import app_page
+
+    request = _request(tmp_path)
+    request.fixture_profile = tmp_path / "host-profile.json"
+    original = '{"project":"alice/paper"}'
+    request.fixture_profile.write_text(original)
+    # Act
+    with override_settings(
+        SCITEX_USER_HOME_PROVIDER=PROVIDER,
+        SCITEX_PROJECT_PROVIDER=__name__ + ".UserOnlyProjectProvider",
+        SCITEX_PROJECT_PROVIDER_URL="/fixture/projects/",
+    ):
+        response = app_page(request)
+        provider_response = scoped_project_listing_view(UserOnlyProjectProvider())(
+            request
+        )
+    body = response.content.decode()
+    protocol = json.loads(provider_response.content)
+    # Assert
+    assert (
+        response.status_code == 200
+        and 'data-view-scope="user"' in body
+        and 'data-view-project=""' in body
+        and "data-current-scope=" not in body
+        and protocol["current"] is None
+        and "current_scope" not in protocol
+        and protocol["projects"][0]["disabled"] is True
+        and request.fixture_profile.read_text() == original
+    )

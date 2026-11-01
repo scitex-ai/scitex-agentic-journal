@@ -19,7 +19,11 @@ fees, service guarantees or branding.
 - The portal defaults to For authors. The remaining sections are Prepare,
   Submit, Your submissions, Review & revision, and Publication.
 - The app is user-scoped. A view does not remember a project or change the host's
-  global profile. Mounted records live below the authenticated host user's home,
+  global profile. SDK >=0.3.17 receives the explicit request-local
+  `view_scope="user"` picker declaration: a stale global project does not
+  become the Journal's selected scope. All projects represents this user's
+  archive; individual project options remain disabled by its user-only
+  capabilities. Mounted records live below the authenticated host user's home,
   in `.scitex/agentic-journal`. CLI/standalone mode retains its existing explicit
   journal-home override and process-home default.
 - A configured provider is authoritative. Missing/invalid/denied mounted storage

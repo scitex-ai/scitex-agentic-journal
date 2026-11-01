@@ -13,7 +13,11 @@ CSRF middleware and the generic user-home capability. No Hub models are imported
 The SDK owns the header, scope picker and content-tab chrome.
 
 The manifest is user-scoped (`user: true`, `project: false`). Viewing the portal
-never changes the host's selected project. Its sections are For authors, Prepare,
+never changes the host's selected project. The header requires SDK >=0.3.17
+and declares `view_scope="user"`: it displays the personal All projects view
+without remembering a global selection. This is not a fabricated
+`current_scope` or a fallback from an unsupported project. The user-only
+capabilities still disable individual project options. Its sections are For authors, Prepare,
 Submit, Your submissions, Review & revision, and Publication. Guidance is not a
 claim that a reviewer, DOI provider or publication service has run.
 
