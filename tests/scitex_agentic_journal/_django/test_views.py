@@ -386,13 +386,15 @@ def test_app_page_header_shows_title(_home: Path) -> None:
     assert "SciTeX Agentic Journal" in body
 
 
-def test_user_scoped_header_does_not_force_project_picker(_home: Path) -> None:
+def test_user_scoped_header_opts_into_shared_scope_picker(_home: Path) -> None:
     # Arrange
     _home
     # Act
-    body = _body()
+    from django.test import override_settings
+    with override_settings(SCITEX_PROJECT_PROVIDER_URL="/aj/api/projects"):
+        body = _body()
     # Assert
-    assert "data-stx-project-picker" not in body
+    assert body.count("data-stx-project-picker") == 1 and 'data-allow-user-scope="true"' in body
 
 
 def test_app_page_header_uses_sdk_mount_and_package_version(_home: Path) -> None:
