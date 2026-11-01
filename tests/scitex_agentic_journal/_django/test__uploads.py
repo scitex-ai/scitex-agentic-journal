@@ -154,3 +154,26 @@ def test_nested_clew_input_is_rebased_to_durable_snapshot(upload):
         and record["clew_verification"]["project_dir"] == str(expected)
         and (expected / "claims.txt").read_text() == "Evidence fixture"
     )
+
+
+def test_missing_intake_with_later_records_requires_recovery(upload):
+    # Arrange
+    verdict, home, fingerprint = upload
+    directory = home / "submissions" / ("sub_" + fingerprint[:32])
+    directory.mkdir(parents=True)
+    review = directory / "review.json"
+    original = '{"record":{"reviewer":"preserve assessment"}}'
+    review.write_text(original)
+    # Act
+    failure = None
+    try:
+        persist_uploaded_verdict(verdict, home=home, fingerprint=fingerprint)
+    except UploadConflict as exc:
+        failure = exc
+    # Assert
+    assert (
+        failure is not None
+        and review.read_text() == original
+        and not (directory / "gate1.json").exists()
+        and not list((home / "bundles").iterdir())
+    )

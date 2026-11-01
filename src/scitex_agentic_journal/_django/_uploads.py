@@ -84,7 +84,12 @@ def persist_uploaded_verdict(verdict, *, home, fingerprint):
                     ) from exc
                 if not isinstance(existing, dict):
                     raise UploadConflict("Existing submission record needs recovery")
-                bundle = Path(existing.get("submission", {}).get("bundle_dir", ""))
+                inputs = existing.get("submission")
+                if not isinstance(inputs, dict) or not isinstance(
+                    inputs.get("bundle_dir"), str
+                ):
+                    raise UploadConflict("Existing submission record needs recovery")
+                bundle = Path(inputs["bundle_dir"])
                 if (
                     existing.get("bundle_sha256") != fingerprint
                     or not bundle.is_dir()
@@ -99,6 +104,10 @@ def persist_uploaded_verdict(verdict, *, home, fingerprint):
                         "Existing submission assets changed; nothing was overwritten"
                     )
                 return PersistedSubmission(identifier, record_path, record_dir)
+            if record_dir.exists() and any(record_dir.iterdir()):
+                raise UploadConflict(
+                    "Incomplete submission records need recovery; nothing was overwritten"
+                )
             source = verdict.submission.bundle_dir.resolve()
             clew_relative = verdict.submission.clew_project_dir.resolve().relative_to(
                 source
