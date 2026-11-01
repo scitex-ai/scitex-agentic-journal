@@ -1,4 +1,5 @@
 {
+  "scope_capabilities": {"user": true, "project": false},
   "name": "agentic_journal_app",
   "slug": "agentic-journal",
   "label": "Agentic Journal",
