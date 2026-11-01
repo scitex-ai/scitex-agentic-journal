@@ -4,6 +4,8 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
 
 ## [Unreleased]
 
+## [0.1.0a2] - 2026-11-01
+
 ### Fixed
 - Require `scitex-sdk>=0.3.16`: the project-scope app header needs the
   tolerant `scitex_project_picker` (renders the leaf local-folder
