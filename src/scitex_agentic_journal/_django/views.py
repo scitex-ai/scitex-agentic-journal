@@ -89,6 +89,8 @@ def app_page(request: HttpRequest):
     The header row is the shared SDK ``stx-app-header`` (no leaf h1)
     with the SDK project picker; scope comes from the manifest.
     """
+    from scitex_agentic_journal import __version__ as app_version
+
     provider = _project_provider(request)
     current_project = resolve_project(
         request,
@@ -113,6 +115,7 @@ def app_page(request: HttpRequest):
                 panes={"ai": "unused", "files": "unused", "viewer": "unused"},
             ),
             "app_scope": _app_scope(),
+            "app_version": app_version,
             "current_project": current_project,
             "example_load_url": page_path + "examples/example-project-mnist/load/",
         },
