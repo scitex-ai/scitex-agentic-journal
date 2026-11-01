@@ -18,6 +18,7 @@ host provider (standalone: local projects folder). (NOTE: this must
 be a {% comment %} block, not {# #}: Django only strips single-line
 {# #} comments, so a multi-line {# #} would leak raw into the page.)
 {% endcomment %}
+<link rel="stylesheet" href="{% static 'scitex_sdk/ui/css/app/app-header.css' %}">
 <header class="stx-app-header">
   <span class="stx-app-header__title">{% trans "SciTeX Agentic Journal" %}</span>
   <div class="stx-app-header__slot--project-selector">

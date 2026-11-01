@@ -39,7 +39,7 @@ def _configure_django() -> None:
             # The SDK UI config autowires dev middleware/processors in
             # ready() — explicitly off under test.
             SCITEX_UI_AUTOWIRE_INSPECTOR=False,
-        STATIC_URL="/static/",
+            STATIC_URL="/static/",
             STORAGES={
                 "default": {
                     "BACKEND": "django.core.files.storage.FileSystemStorage",
@@ -232,13 +232,6 @@ def test_submit_route_reverses() -> None:
 # ----- plugin app page (views.index) ----
 
 
-
-
-
-
-
-
-
 @pytest.fixture
 def _persisted(_home: Path) -> Path:
     # Arrange
@@ -253,8 +246,6 @@ def _persisted(_home: Path) -> Path:
         json.dumps({"record": {"verdict": "accept"}}), encoding="utf-8"
     )
     return _home
-
-
 
 
 def _body() -> str:
@@ -381,7 +372,10 @@ def test_app_page_mounts_shared_app_header(_home: Path) -> None:
     # Act
     body = _body()
     # Assert
-    assert '<header class="stx-app-header">' in body
+    assert (
+        '<header class="stx-app-header">' in body
+        and "scitex_sdk/ui/css/app/app-header.css" in body
+    )
 
 
 def test_app_page_header_shows_title(_home: Path) -> None:
@@ -527,9 +521,7 @@ def test_app_page_template_has_no_real_url_tags() -> None:
     source = _template_source()
     # Act
     code = _re.sub(r"\{#.*?#\}", "", source, flags=_re.S)
-    code = _re.sub(
-        r"{%\s*comment\s*%}.*?{%\s*endcomment\s*%}", "", code, flags=_re.S
-    )
+    code = _re.sub(r"{%\s*comment\s*%}.*?{%\s*endcomment\s*%}", "", code, flags=_re.S)
     # Assert
     assert "{% url " not in code
 

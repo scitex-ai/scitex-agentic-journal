@@ -2,6 +2,12 @@
 
 All notable changes to `scitex-agentic-journal` are documented in this file.
 
+## 0.1.0a3 — 2026-11-01
+
+- Declare literal Journal AppConfig identity and explicit required SDK inheritance so Hub can certify the plugin before Django startup.
+- Keep manifest and SDK startup errors visible instead of silently falling back to a plain Django app.
+- Load the shared SDK header stylesheet so the canonical row renders consistently on mounted pages.
+
 ## [Unreleased]
 
 ## [0.1.0a2] - 2026-11-01
