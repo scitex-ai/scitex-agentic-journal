@@ -174,24 +174,18 @@ pytest tests/
 
 ## Demo
 
-The submit / review / decide / publish subcommands return structured
-errors until their tracking issues land. The version + help paths are
-the existing smoke surface:
+The pipeline commands invoke implemented workflow modules. Structural intake
+contacts ORCID/Git and runs Clew checks; review and publication require their
+own configured adapters and records. Inspect the installed commands without
+executing those operations:
 
-```console
-$ scitex-agentic-journal --version
-scitex-agentic-journal, version 0.1.0-alpha
-$ scitex-agentic-journal --help
-Usage: scitex-agentic-journal [OPTIONS] COMMAND [ARGS]...
-
-  ARA-native AI-reviewed open publishing on top of Clew.
-  See `scitex-agentic-journal <subcommand> --help`.
-
-Commands:
-  decide   Apply the editorial decision engine to a review record.
-  publish  Hand off an accepted submission to scitex-live-paper.
-  review   Run a single reviewer-agent against a persisted submission.
-  submit   Submit a manuscript bundle through Gate-1 (orchestrator stub).
+```sh
+scitex-agentic-journal --version
+scitex-agentic-journal --help
+scitex-agentic-journal submit --help
+scitex-agentic-journal review --help
+scitex-agentic-journal decide --help
+scitex-agentic-journal publish --help
 ```
 
 Library demos for the Gate-1 ORCID resolver (#2) and code-repo
