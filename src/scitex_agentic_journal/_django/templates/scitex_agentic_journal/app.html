@@ -1,68 +1,64 @@
 {% extends "scitex_sdk/app/app_shell.html" %}
-{% load i18n scitex_project_picker static scitex_static %}{% comment %}
-Agentic Journal plugin page (server-rendered leaf).
-
-Extends the SDK app shell and fills only `scitex_app_content` — the
-leaf owns no layout. No `{% url %}` tags and no absolute paths: hub
-mounts this urlconf under its own namespace/prefix
-(`journal-leaf`), so every link here would be wrong. Machine clients
-use the JSON endpoints (`archive/`, `submissions/<id>/`, …); this
-page is the human-readable mirror of the same `_leaf` payloads.
-{% endcomment %}
-{% block scitex_app_content %}{% comment %}
-One shared SDK header row (scholar pattern): the `stx-app-header`
-title span plus the SDK project-picker slot — no leaf-local h1, no
-JS header mount, no custom header. Scope comes from the manifest
-(`project`); the view resolves the current project via the mounted
-host provider (standalone: local projects folder). (NOTE: this must
-be a {% comment %} block, not {# #}: Django only strips single-line
-{# #} comments, so a multi-line {# #} would leak raw into the page.)
-{% endcomment %}
+{% load i18n scitex_project_picker static scitex_static %}
+{% block scitex_app_content %}
 <link rel="stylesheet" href="{% app_static 'scitex_sdk/ui/css/app/app-header.css' %}">
-<div data-stx-app-header data-app-title="{% trans 'SciTeX Agentic Journal' %}"
-     data-app-version="{{ app_version }}">
-    {% scitex_project_picker scope=app_scope current=current_project allow_user_scope=True %}
+<link rel="stylesheet" href="{% app_static 'scitex_sdk/ui/css/app/content-tabs.css' %}">
+<link rel="stylesheet" href="{% static 'scitex_agentic_journal/css/app.css' %}">
+<div data-stx-app-header data-app-title="{% trans 'Agentic Journal' %}" data-app-version="{{ app_version }}">
+  {% scitex_project_picker scope=app_scope current=current_project allow_user_scope=True %}
 </div>
 <script type="module" src="{% app_static 'scitex_sdk/ui/js/app/app-header.js' %}"></script>
-<link rel="stylesheet" href="{% static 'scitex_agentic_journal/css/app.css' %}">
-<main class="aj-page">
-  <p>AI-reviewed open publishing on top of Clew.</p>
-  {% if placeholder %}
-  <p>No submissions yet. Submit a bundle to open the journal.</p>
-  <div>
-    <p>Or explore with the shared demo project <strong>example-project-mnist</strong>
-    (handwritten-digit recognition, MNIST) — loads a labeled demo submission
-    through the same records a Gate-1 pass persists.</p>
-    <form method="post" action="{{ example_load_url }}">
-      {% csrf_token %}
-      <button type="submit">Load example-project-mnist</button>
-    </form>
+<nav class="stx-content-tabs" role="tablist" aria-label="{% trans 'Journal sections' %}" data-journal-tabs>
+  {% for item in sections %}
+  <a id="journal-tab-{{ item.key }}" class="stx-content-tabs__tab" role="tab" aria-selected="{{ item.active|yesno:'true,false' }}" aria-controls="journal-content" tabindex="{% if item.active %}0{% else %}-1{% endif %}" href="?section={{ item.key }}">{{ item.label }}</a>
+  {% endfor %}
+</nav>
+<main class="aj-page" id="journal-content" role="tabpanel" aria-labelledby="journal-tab-{{ section }}" tabindex="0">
+{% if section == "authors" %}
+  <header class="aj-intro"><p class="aj-eyebrow">{% trans 'For authors' %}</p><h1>{% trans 'Make the evidence behind your research inspectable.' %}</h1><p>{% trans 'Bring the manuscript, code and claim-level evidence together. Follow your submission through the records produced by structural checks, review and decision workflows.' %}</p><div class="aj-actions"><a class="aj-action aj-action--primary" href="?section=prepare">{% trans 'Prepare your submission' %}</a><a class="aj-action" href="?section=archive">{% trans 'Your submissions' %}</a></div></header>
+  {% if placeholder %}<section class="aj-card"><h2>{% trans 'No submissions yet' %}</h2><p>{% trans 'Use the preparation checklist to begin, or explore explicitly labeled example records.' %}</p><details><summary>{% trans 'Explore example-project-mnist' %}</summary><p>{% trans 'Example records are demonstration content, not an executed scientific assessment.' %}</p><form method="post" action="{{ example_load_url }}">{% csrf_token %}<button class="aj-action" type="submit" {% if not example_available %}disabled{% endif %}>{% trans 'Load example-project-mnist' %}</button></form>{% if not example_available %}<p>{% trans 'The example bundle is not installed for this service.' %}</p>{% endif %}</details></section>{% endif %}
+  <div class="aj-grid">
+    <section class="aj-card"><h2>{% trans 'A clear research question' %}</h2><p>{% trans 'Explain what you investigated, why the question matters and which observations support each conclusion. Describe limitations alongside the results.' %}</p></section>
+    <section class="aj-card"><h2>{% trans 'Traceable supporting material' %}</h2><p>{% trans 'Connect claims to code, data and reproducibility evidence. Include the information another researcher needs to inspect the analysis.' %}</p></section>
+    <section class="aj-card"><h2>{% trans 'Transparent assessment' %}</h2><p>{% trans 'Review records identify their adapter and rubric version. Decision records show the rules and rationale used. Inspect the evidence rather than treating a status label as scientific validation.' %}</p></section>
   </div>
-  {% else %}
-  <table>
-    <thead>
-      <tr>
-        <th>Submission</th>
-        <th>Gate-1</th>
-        <th>Review</th>
-        <th>Decision</th>
-        <th>Verdict</th>
-        <th>Persistent ID</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in submissions %}
-      <tr>
-        <td>{{ row.submission_id }}</td>
-        <td>{{ row.has_gate1 }}</td>
-        <td>{{ row.has_review }}</td>
-        <td>{{ row.has_decision }}</td>
-        <td>{{ row.verdict|default:"—" }}</td>
-        <td>{{ row.persistent_id|default:"—" }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <section class="aj-card"><h2>{% trans 'Your route through the journal' %}</h2><ol class="aj-steps"><li><strong>{% trans 'Prepare' %}</strong><span>{% trans 'Assemble the manuscript, evidence and declarations.' %}</span></li><li><strong>{% trans 'Submit' %}</strong><span>{% trans 'Run the structural intake checks and keep the submission ID.' %}</span></li><li><strong>{% trans 'Review and revise' %}</strong><span>{% trans 'Read recorded assessments and respond to specific issues.' %}</span></li><li><strong>{% trans 'Publication' %}</strong><span>{% trans 'Check the recorded decision and configured publishing handoff.' %}</span></li></ol></section>
+  <aside class="aj-note">{% trans 'Structural intake and record viewing are available here. Review execution, revision handling and publication require configured operator workflows; this portal does not run them automatically.' %}</aside>
+{% elif section == "prepare" %}
+  <h1>{% trans 'Prepare a complete research bundle' %}</h1><p class="aj-lead">{% trans 'Use this checklist to make the submission understandable before it reaches a reviewer.' %}</p>
+  <div class="aj-grid">
+    <section class="aj-card"><h2>{% trans 'Manuscript and figures' %}</h2><ul><li>{% trans 'State the question, methods, results and limitations clearly.' %}</li><li>{% trans 'Include informative figure legends and the underlying values needed to interpret plots.' %}</li><li>{% trans 'Keep references and supporting files consistent with the manuscript.' %}</li></ul></section>
+    <section class="aj-card"><h2>{% trans 'Code and reproducibility' %}</h2><ul><li>{% trans 'Provide the repository URL, a documented environment and reproducible entry points.' %}</li><li>{% trans 'Keep the Clew project inside the bundle and link claims to their evidence.' %}</li><li>{% trans 'Identify versions and explain results that cannot be reproduced independently.' %}</li></ul></section>
+    <section class="aj-card"><h2>{% trans 'Data and access' %}</h2><ul><li>{% trans 'Describe where the supporting data can be obtained, including repository identifiers and reuse conditions.' %}</li><li>{% trans 'Explain access restrictions and an appropriate access route when data cannot be shared openly.' %}</li><li>{% trans 'Remove personal or sensitive information from files intended for sharing.' %}</li></ul></section>
+    <section class="aj-card"><h2>{% trans 'Authorship and declarations' %}</h2><ul><li>{% trans 'Confirm the author list, contributions and corresponding contact with your coauthors.' %}</li><li>{% trans 'Prepare funding, competing-interest, ethics and consent statements where applicable.' %}</li><li>{% trans 'Describe relevant automated-tool use and related manuscripts.' %}</li></ul></section>
+  </div>
+  <section class="aj-card"><h2>{% trans 'What structural intake checks' %}</h2><p>{% trans 'The current gate checks that the ORCID resolves, the code repository can be cloned and the Clew project records at least one verified run. Passing these checks does not establish novelty, methodological soundness or acceptance.' %}</p><a class="aj-action aj-action--primary" href="?section=submit">{% trans 'See submission options' %}</a></section>
+{% elif section == "submit" %}
+  <h1>{% trans 'Submit a research bundle' %}</h1><p class="aj-lead">{% trans 'Web intake accepts a YAML manifest and optional UTF-8 text files, up to 2 MiB in total. For an existing local bundle or binary assets, use the command-line workflow.' %}</p>
+  <div class="aj-grid"><section class="aj-card"><h2>{% trans 'Existing local bundle' %}</h2><pre><code>scitex-agentic-journal submit ./your-bundle/</code></pre><p>{% trans 'The bundle manifest requires orcid_id and code_repo_url. clew_project_path is optional and defaults to the bundle root.' %}</p></section><section class="aj-card"><h2>{% trans 'Before you run intake' %}</h2><p>{% trans 'Intake contacts the ORCID service and the code repository and runs Clew verification. No reviewer or publication service is started by this action.' %}</p><p>{% trans 'Keep the returned submission ID. Uploaded assets are retained with the record; retries of the same uploaded content reuse its immutable submission.' %}</p></section></div>
+  <form class="aj-card aj-intake" data-journal-submit action="{{ submit_url }}" method="post">{% csrf_token %}
+    <h2>{% trans 'Text-bundle intake' %}</h2>
+    <label for="journal-manifest">{% trans 'bundle.yaml' %}</label><textarea id="journal-manifest" name="bundle_yaml" rows="6" required spellcheck="false" placeholder="orcid_id: '0000-0000-0000-0000'&#10;code_repo_url: 'https://example.org/your/repository.git'"></textarea>
+    <label for="journal-files">{% trans 'Optional text files as a JSON object' %}</label><textarea id="journal-files" name="files" rows="4" spellcheck="false" placeholder='{"README.md": "How to reproduce the analysis"}'></textarea>
+    <label class="aj-confirm"><input type="checkbox" required name="confirm"> {% trans 'I am ready to run structural checks and retain this bundle in my journal archive.' %}</label>
+    <button class="aj-action aj-action--primary" type="submit">{% trans 'Run structural intake' %}</button><p role="status" aria-live="polite" data-journal-submit-status></p>
+  </form>
+{% elif section == "archive" %}
+  <h1>{% trans 'Your submissions' %}</h1><p class="aj-lead">{% trans 'These are records in your personal journal archive. A selected project does not grant access to another author’s records.' %}</p>
+  {% if placeholder %}<section class="aj-card"><h2>{% trans 'No submissions yet' %}</h2><p>{% trans 'Prepare your research bundle, then run structural intake to create the first record.' %}</p><a class="aj-action" href="?section=prepare">{% trans 'Preparation checklist' %}</a></section>{% else %}
+  <div class="aj-table-wrap"><table><thead><tr><th>{% trans 'Submission' %}</th><th>{% trans 'Structural intake' %}</th><th>{% trans 'Review' %}</th><th>{% trans 'Decision' %}</th><th>{% trans 'Identifier' %}</th></tr></thead><tbody>{% for row in submissions %}<tr><td><a href="?section=review&amp;submission={{ row.submission_id|urlencode }}">{{ row.submission_id }}</a>{% if row.example %} <span class="aj-badge">{% trans 'Example' %}</span>{% endif %}</td><td>{{ row.has_gate1|yesno:_('Recorded,Not recorded') }}</td><td>{{ row.has_review|yesno:_('Recorded,Not recorded') }}</td><td>{{ row.verdict|default:_('Not recorded') }}</td><td>{{ row.persistent_id|default:'—' }}</td></tr>{% endfor %}</tbody></table></div>
   {% endif %}
+{% elif section == "review" %}
+  <h1>{% trans 'Review and revision' %}</h1><p class="aj-lead">{% trans 'Inspect the recorded assessment and decision before preparing a response. A structural intake pass alone is not a completed review.' %}</p>
+  {% if selected_submission %}<section class="aj-card"><h2>{{ selected_submission.submission_id }}{% if selected_submission.example %} <span class="aj-badge">{% trans 'Example record' %}</span>{% endif %}</h2>
+    {% if review %}<h3>{% trans 'Recorded review' %}</h3><dl class="aj-facts"><dt>{% trans 'Adapter' %}</dt><dd>{{ review.adapter|default:'—' }}</dd><dt>{% trans 'Rubric version' %}</dt><dd>{{ review.rubric_version|default:'—' }}</dd><dt>{% trans 'Finished' %}</dt><dd>{{ review.finished_at|default:'—' }}</dd></dl>{% if review.adapter == 'local-deterministic' %}<p class="aj-note">{% trans 'This record comes from a deterministic local adapter; it is not an independent expert assessment.' %}</p>{% endif %}<a href="{{ page_base }}submissions/{{ selected_submission.submission_id|urlencode }}/review/">{% trans 'Read complete review record' %}</a>{% else %}<p>{% trans 'No review record has been written for this submission.' %}</p>{% endif %}
+    {% if decision %}<h3>{% trans 'Recorded decision' %}: {{ decision.verdict|default:'—' }}</h3><p>{% trans 'Rules version' %}: {{ decision.rules_version|default:'—' }}</p><ul>{% for hit in decision.rule_hits %}<li>{{ hit.message }}</li>{% endfor %}</ul><a href="{{ page_base }}submissions/{{ selected_submission.submission_id|urlencode }}/decision/">{% trans 'Read complete decision record' %}</a>{% else %}<p>{% trans 'No decision record has been written for this submission.' %}</p>{% endif %}
+  </section>{% else %}<p><a class="aj-action" href="?section=archive">{% trans 'Choose one of your submissions' %}</a></p>{% endif %}
+  <section class="aj-card"><h2>{% trans 'Prepare a revision' %}</h2><ol><li>{% trans 'Respond to each substantive issue and point to the changed text or evidence.' %}</li><li>{% trans 'Keep a versioned change log and rerun affected analyses and claim checks.' %}</li><li>{% trans 'Preserve the earlier assessment. Ask the operator how to submit the revised version; this portal has no revision action yet.' %}</li></ol></section>
+{% elif section == "publication" %}
+  <h1>{% trans 'From decision to publication' %}</h1><p class="aj-lead">{% trans 'An acceptance decision is a recorded outcome, not proof that a paper has been published or a DOI registered.' %}</p>
+  <div class="aj-grid"><section class="aj-card"><h2>{% trans 'Confirm the final research record' %}</h2><p>{% trans 'Check the manuscript, author details, figures, references and data/code access statements. Keep the files consistent with the accepted evidence.' %}</p></section><section class="aj-card"><h2>{% trans 'Inspect the configured handoff' %}</h2><p>{% trans 'Identifier minting and publication use separately configured backends. A missing identifier remains missing; no public registration is inferred from an intake pass or decision.' %}</p><p>{% trans 'Publishing is not available as a web action here. Consult the operator and the recorded publishing workflow.' %}</p></section></div>
+{% endif %}
 </main>
+<script type="module" src="{% static 'scitex_agentic_journal/js/author-portal.js' %}"></script>
 {% endblock %}

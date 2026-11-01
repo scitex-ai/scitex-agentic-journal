@@ -10,6 +10,18 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Original author portal with preparation, intake, personal archive, review/revision and publication guidance using SDK-owned chrome.
+- Authenticated request-local archive resolution through the generic host user-home provider; mounted failures do not fall back to a shared service home.
+- Real per-user review/decision reads and safe single-component record identifiers.
+
+### Fixed
+
+- Preserve uploaded inputs in independently checked durable snapshots before intake staging is removed; immutable retries retain subsequent reviews and decisions.
+- Stop returning fabricated passing validator checks, protect unexpected example content and record aliases, and remove the retired scitex-ui runtime dependency.
+
+
 ## [0.1.0a4] - 2026-11-01
 
 ### Added

@@ -18,6 +18,8 @@ from typing import Final
 
 from django.http import HttpRequest, JsonResponse
 
+from ._request_home import journal_request, request_home
+
 PENDING_HANDLERS: Final[tuple[str, ...]] = (
     "start_review",
     "submit_review",
@@ -39,6 +41,7 @@ def _is_json_request(request: HttpRequest) -> bool:
     return (request.content_type or "").split(";")[0].strip() == "application/json"
 
 
+@journal_request
 def load_example(request: HttpRequest) -> JsonResponse:
     """POST the demo bundle into the archive as labeled example content.
 
@@ -68,9 +71,25 @@ def load_example(request: HttpRequest) -> JsonResponse:
     if request.method != "POST":
         return _reject("method-not-allowed: use POST.", 405)
     try:
-        receipt = _examples.load_example_project()
-    except _examples.ExampleUnavailable as exc:
-        return JsonResponse({"ok": False, "reason": str(exc)}, status=404)
+        from ._uploads import UploadConflict, _namespace
+
+        try:
+            _namespace(request_home(request), "submissions")
+        except UploadConflict:
+            return _reject("Journal storage is unavailable.", 503)
+        receipt = _examples.load_example_project(home=request_home(request))
+    except _examples.ExampleConflict:
+        return _reject(
+            "Existing example content was preserved; loading was refused.", 409
+        )
+    except _examples.ExampleUnavailable:
+        return JsonResponse(
+            {
+                "ok": False,
+                "reason": "The example bundle is not installed for this service.",
+            },
+            status=404,
+        )
     except SubmissionLoadError as exc:
         return JsonResponse(
             {"ok": False, "reason": f"example bundle invalid: {exc}"}, status=422
@@ -78,9 +97,9 @@ def load_example(request: HttpRequest) -> JsonResponse:
     if _is_json_request(request):
         return JsonResponse({"ok": True, **receipt}, status=201)
     index = request.path
-    if index.endswith(EXAMPLE_LOAD_SUFFIX):
-        index = index[: -len(EXAMPLE_LOAD_SUFFIX)]
+    index = index.removesuffix(EXAMPLE_LOAD_SUFFIX)
     return HttpResponseRedirect(index, status=303)
+
 
 _MAX_BUNDLE_YAML_BYTES: Final[int] = 256 * 1024
 """Largest accepted ``bundle_yaml`` body (256 KiB — manifests are small)."""
@@ -99,7 +118,9 @@ def _reject(message: str, status: int) -> JsonResponse:
     return JsonResponse({"ok": False, "reason": message}, status=status)
 
 
-def _stage_upload(bundle_yaml: str, files: dict) -> tuple[Path, Path, str]:
+def _stage_upload(
+    bundle_yaml: str, files: dict, *, home=None
+) -> tuple[Path, Path, str]:
     """Stage an uploaded bundle into a server-minted dir.
 
     Returns ``(home, stage_dir, fingerprint)``. Every filesystem path
@@ -109,36 +130,48 @@ def _stage_upload(bundle_yaml: str, files: dict) -> tuple[Path, Path, str]:
     """
     from scitex_agentic_journal._submit._persist import _submission_home
 
-    home = _submission_home()
+    home = home if home is not None else _submission_home()
+    staging = home / "staging"
+    if staging.is_symlink() or not staging.resolve().is_relative_to(home.resolve()):
+        raise ValueError("Journal staging namespace is not safe")
     stage_dir = home / "staging" / secrets.token_hex(8)
     stage_dir.mkdir(parents=True, exist_ok=False)
-    (stage_dir / "bundle.yaml").write_text(bundle_yaml, encoding="utf-8")
-    hasher = hashlib.sha256()
-    hasher.update(b"bundle.yaml\x00")
-    hasher.update(bundle_yaml.encode("utf-8"))
-    hasher.update(b"\x00")
-    total = len(bundle_yaml.encode("utf-8"))
-    for rel in sorted(files):
-        target = (stage_dir / rel).resolve()
-        if target != stage_dir.resolve() and stage_dir.resolve() not in target.parents:
+    try:
+        (stage_dir / "bundle.yaml").write_text(bundle_yaml, encoding="utf-8")
+        hasher = hashlib.sha256()
+        hasher.update(b"bundle.yaml\x00")
+        hasher.update(bundle_yaml.encode("utf-8"))
+        hasher.update(b"\x00")
+        total = len(bundle_yaml.encode("utf-8"))
+        for rel in sorted(files):
+            target = (stage_dir / rel).resolve()
+            if (
+                target != stage_dir.resolve()
+                and stage_dir.resolve() not in target.parents
+            ):
+                raise ValueError(
+                    f"files key {rel!r} escapes the bundle — use a relative path."
+                )
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(files[rel], encoding="utf-8")
+            blob = files[rel].encode("utf-8")
+            total += len(blob)
+            hasher.update(rel.encode("utf-8"))
+            hasher.update(b"\x00")
+            hasher.update(blob)
+            hasher.update(b"\x00")
+        if total > _MAX_TOTAL_BYTES:
             raise ValueError(
-                f"files key {rel!r} escapes the bundle — use a relative path."
+                f"uploaded bundle is {total} bytes — over the {_MAX_TOTAL_BYTES} cap."
             )
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(files[rel], encoding="utf-8")
-        blob = files[rel].encode("utf-8")
-        total += len(blob)
-        hasher.update(rel.encode("utf-8"))
-        hasher.update(b"\x00")
-        hasher.update(blob)
-        hasher.update(b"\x00")
-    if total > _MAX_TOTAL_BYTES:
-        raise ValueError(
-            f"uploaded bundle is {total} bytes — over the {_MAX_TOTAL_BYTES} cap."
-        )
-    return home, stage_dir, hasher.hexdigest()
+        return home, stage_dir, hasher.hexdigest()
+
+    except BaseException:
+        shutil.rmtree(stage_dir, ignore_errors=True)
+        raise
 
 
+@journal_request
 def submit(request: HttpRequest) -> JsonResponse:
     """POST /aj/submit/ — stage an uploaded bundle, run Gate-1, persist.
 
@@ -152,13 +185,14 @@ def submit(request: HttpRequest) -> JsonResponse:
 
     No caller-supplied filesystem path is ever read: ``files`` keys
     are confined to the stage dir (absolute paths and ``..`` climbs
-    rejected with 400), and a ``clew_project_path`` that resolves
-    outside the staged bundle is rejected with 422 (hub writer-SITE-1
-    rule). The stage dir is always cleaned up.
+    rejected with 400), and a ``clew_project_path`` that resolves outside
+    the staged bundle is rejected with 422. Passing bundles are copied into
+    immutable per-user assets and their record paths are rebased before the
+    temporary intake directory is cleaned up.
 
     Retries are idempotent: the submission id derives deterministically
-    from the staged content, so resubmitting the same bundle rewrites
-    the same record dir instead of minting a duplicate.
+    from the staged content, so a retry returns the original immutable record without
+    rewriting a prior review or decision.
 
     Status contract (no tracebacks, always JSON):
 
@@ -169,17 +203,13 @@ def submit(request: HttpRequest) -> JsonResponse:
     * ``422`` when the staged bundle fails to load or Gate-1 rejects
       it (``reason`` mirrors the CLI's single-line failure message).
 
-    Auth lives on the hub side: hub mounts this urlconf wholesale
-    behind ``login_required`` (see
-    ``apps/workspace/journal_app/urls/journal_django.py``), so this
-    view carries no decorator of its own. CSRF is enforced by the
-    host's middleware stack.
+    Mounted requests require authentication and a configured host user-home
+    provider. CSRF is enforced by the host middleware; no exemption is used.
     """
     from scitex_agentic_journal._submit import (
         Gate1Failure,
         SubmissionLoadError,
         load_submission,
-        persist_verdict,
         run_gate1,
     )
 
@@ -201,8 +231,7 @@ def submit(request: HttpRequest) -> JsonResponse:
     bundle_yaml = body.get("bundle_yaml")
     if not isinstance(bundle_yaml, str) or not bundle_yaml.strip():
         return _reject(
-            "missing-bundle_yaml: POST JSON "
-            '{"bundle_yaml": "<bundle.yaml text>"}.',
+            'missing-bundle_yaml: POST JSON {"bundle_yaml": "<bundle.yaml text>"}.',
             400,
         )
     if len(bundle_yaml.encode("utf-8")) > _MAX_BUNDLE_YAML_BYTES:
@@ -222,7 +251,12 @@ def submit(request: HttpRequest) -> JsonResponse:
         if not isinstance(rel, str) or not isinstance(text, str):
             return _reject("invalid-files: keys and values must be strings.", 400)
         candidate = Path(rel)
-        if candidate.is_absolute() or ".." in candidate.parts:
+        if (
+            candidate.is_absolute()
+            or ".." in candidate.parts
+            or not rel
+            or candidate.as_posix() in {".", "bundle.yaml"}
+        ):
             return _reject(
                 f"invalid-files: key {rel!r} must be a relative path without '..'.",
                 400,
@@ -233,8 +267,16 @@ def submit(request: HttpRequest) -> JsonResponse:
                 f"{_MAX_EXTRA_FILE_BYTES}-byte per-file cap.",
                 400,
             )
+    if (
+        len(bundle_yaml.encode("utf-8"))
+        + sum(len(text.encode("utf-8")) for text in files.values())
+        > _MAX_TOTAL_BYTES
+    ):
+        return _reject("Uploaded bundle exceeds the total size limit.", 400)
     try:
-        home, stage_dir, fingerprint = _stage_upload(bundle_yaml, files)
+        home, stage_dir, fingerprint = _stage_upload(
+            bundle_yaml, files, home=request_home(request)
+        )
     except ValueError as exc:
         return _reject(str(exc), 400)
     try:
@@ -257,7 +299,16 @@ def submit(request: HttpRequest) -> JsonResponse:
             if exc.check:
                 payload["check"] = exc.check
             return JsonResponse(payload, status=422)
-        persisted = persist_verdict(verdict, home=home, key=fingerprint)
+        from ._uploads import UploadConflict, persist_uploaded_verdict
+
+        try:
+            persisted = persist_uploaded_verdict(
+                verdict, home=home, fingerprint=fingerprint
+            )
+        except UploadConflict:
+            return _reject(
+                "Submission persistence conflicted; no record was overwritten.", 409
+            )
         return JsonResponse(
             {"ok": True, "submission_id": persisted.submission_id},
             status=201,

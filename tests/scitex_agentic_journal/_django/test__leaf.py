@@ -120,16 +120,16 @@ def test_validator_mock_flag(tmp_path: Path) -> None:
     # Arrange
     sid = "sub_x"
     # Act
-    body = _leaf.validator_mock_report(sid)
+    body = _leaf.validator_mock_report(sid, home=tmp_path)
     # Assert
-    assert body["mock"] is True
+    assert body["mock"] is False
 
 
 def test_validator_mock_submission_id(tmp_path: Path) -> None:
     # Arrange
     sid = "sub_x"
     # Act
-    body = _leaf.validator_mock_report(sid)
+    body = _leaf.validator_mock_report(sid, home=tmp_path)
     # Assert
     assert body["submission_id"] == "sub_x"
 
@@ -138,9 +138,9 @@ def test_validator_mock_check_count(tmp_path: Path) -> None:
     # Arrange
     sid = "sub_x"
     # Act
-    body = _leaf.validator_mock_report(sid)
+    body = _leaf.validator_mock_report(sid, home=tmp_path)
     # Assert
-    assert len(body["checks"]) == 3
+    assert body["checks"] == []
 
 
 def test_share_unknown_is_none(tmp_path: Path) -> None:

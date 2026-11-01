@@ -1,12 +1,11 @@
-"""Leaf helpers for the Monday demo — Django-free.
+"""Per-user persisted journal record reads — Django-free.
 
 Archive / browse / share / HTML payloads read the real on-disk
 submission home (``$SCITEX_AGENTIC_JOURNAL_HOME/submissions/*/``)
 without importing Django, so unit tests exercise them with ``tmp_path``.
 
-Placeholder contracts stay in ``views`` / ``handlers``: empty home
-still returns explicit ``placeholder: True`` rather than a silent
-empty list. Rendering stays behind ports — this module never imports
+An empty archive retains ``placeholder: True`` for compatibility; review
+and decision reads never fabricate records. Rendering stays behind ports — this module never imports
 ``scitex_live_paper``; the HTML payload carries the badge + IDs the
 live-paper renderer consumes via its ports contract.
 """
@@ -16,7 +15,9 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
+
+from scitex_agentic_journal._submit._ids import validate_submission_id
 
 
 def _submission_home(home: Path | None = None) -> Path:
@@ -28,10 +29,12 @@ def _submission_home(home: Path | None = None) -> Path:
     return Path.home() / ".scitex" / "agentic-journal"
 
 
-def _safe_read_json(path: Path) -> Optional[dict]:
+def _safe_read_json(path: Path) -> dict | None:
+    if path.is_symlink():
+        return None
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except (OSError, UnicodeError, json.JSONDecodeError):
         return None
     return payload if isinstance(payload, dict) else None
 
@@ -43,20 +46,46 @@ def _record_block(payload: dict) -> dict:
     return payload
 
 
+def submission_dir(submission_id: str, home: Path | None = None):
+    """Resolve only a single safe identifier; never follow archive aliases."""
+    try:
+        validate_submission_id(submission_id)
+    except ValueError:
+        return None
+    root = _submission_home(home).resolve()
+    collection = root / "submissions"
+    candidate = collection / submission_id
+    if collection.is_symlink() or candidate.is_symlink():
+        return None
+    if candidate.resolve().parent != collection.resolve():
+        return None
+    return candidate if candidate.is_dir() else None
+
+
+def read_record(submission_id, kind, home=None):
+    """Read an existing persisted record; unsupported names never become paths."""
+    if kind not in {"gate1", "review", "decision", "persistent_id"}:
+        raise ValueError("Unknown journal record kind")
+    directory = submission_dir(submission_id, home)
+    return (
+        _safe_read_json(directory / f"{kind}.json") if directory is not None else None
+    )
+
+
 def submission_ids(home: Path | None = None) -> list[str]:
     """Sorted submission ids present on disk (empty when home missing)."""
     root = _submission_home(home) / "submissions"
-    if not root.is_dir():
+    if root.is_symlink() or not root.is_dir():
         return []
     ids: list[str] = []
     for child in sorted(root.iterdir()):
-        if child.is_dir():
+        if submission_dir(child.name, home) is not None:
             ids.append(child.name)
     return ids
 
 
 def list_archive(home: Path | None = None) -> dict[str, Any]:
-    """Archive payload for the demo dashboard.
+    """Archive payload from persisted records.
 
     Returns ``placeholder: True`` when no submissions exist so the UI
     renders the wired-but-empty state instead of a misleading table.
@@ -69,27 +98,33 @@ def list_archive(home: Path | None = None) -> dict[str, Any]:
         if summary is not None:
             items.append(summary)
     if not items:
-        return {"submissions": [], "placeholder": True, "next_milestone": "M1 submission gate"}
+        return {
+            "submissions": [],
+            "placeholder": True,
+            "next_milestone": "M1 submission gate",
+        }
     return {"submissions": items, "placeholder": False}
 
 
-def get_submission_summary(submission_id: str, home: Path | None = None) -> Optional[dict[str, Any]]:
+def get_submission_summary(
+    submission_id: str, home: Path | None = None
+) -> dict[str, Any] | None:
     """Browse payload for one submission; ``None`` when unknown."""
     root = _submission_home(home)
-    subdir = root / "submissions" / submission_id
-    if not subdir.is_dir():
+    subdir = submission_dir(submission_id, root)
+    if subdir is None:
         return None
     gate1 = _safe_read_json(subdir / "gate1.json")
     review = _safe_read_json(subdir / "review.json")
     decision = _safe_read_json(subdir / "decision.json")
     pid_doc = _safe_read_json(subdir / "persistent_id.json")
-    persistent_id: Optional[str] = None
+    persistent_id: str | None = None
     if pid_doc is not None:
         block = _record_block(pid_doc)
         cand = block.get("persistent_id", pid_doc.get("persistent_id"))
         if isinstance(cand, str) and cand:
             persistent_id = cand
-    verdict: Optional[str] = None
+    verdict: str | None = None
     if decision is not None:
         block = _record_block(decision)
         v = block.get("verdict")
@@ -97,6 +132,9 @@ def get_submission_summary(submission_id: str, home: Path | None = None) -> Opti
             verdict = v
     return {
         "submission_id": submission_id,
+        "example": bool(
+            (gate1 or {}).get("example") or _record_block(decision or {}).get("example")
+        ),
         "has_gate1": gate1 is not None,
         "has_review": review is not None,
         "has_decision": decision is not None,
@@ -105,26 +143,27 @@ def get_submission_summary(submission_id: str, home: Path | None = None) -> Opti
     }
 
 
-def validator_mock_report(submission_id: str) -> dict[str, Any]:
-    """Deterministic mock agent repro report for the validator panel.
-
-    No I/O: the demo shows this shape until a real reviewer adapter
-    runs. Explicit ``mock: True`` so nobody mistakes it for a real run.
-    """
+def validator_report(submission_id, home=None):
+    """Expose recorded evidence, never synthetic passing validation checks."""
+    gate = read_record(submission_id, "gate1", home)
+    review = read_record(submission_id, "review", home)
     return {
         "submission_id": submission_id,
-        "mock": True,
-        "adapter": "mock-agent-repro",
-        "checks": [
-            {"name": "orcid-resolvable", "passed": True, "detail": "mock: ORCID resolves"},
-            {"name": "code-repo-cloneable", "passed": True, "detail": "mock: repo clones"},
-            {"name": "clew-dag-verifies-claim", "passed": True, "detail": "mock: >=1 claim green"},
-        ],
-        "repro": {"status": "not-run", "log": "mock: reviewer agent not yet executed"},
+        "mock": False,
+        "checks": [],
+        "gate1_record": gate,
+        "review_record": review,
+        "recorded": review is not None,
+        "repro": {"status": "recorded" if review is not None else "not-run"},
     }
 
 
-def share_record(submission_id: str, home: Path | None = None) -> Optional[dict[str, Any]]:
+def validator_mock_report(submission_id, home=None):
+    """Compatibility name; synthetic checks have been retired."""
+    return validator_report(submission_id, home)
+
+
+def share_record(submission_id: str, home: Path | None = None) -> dict[str, Any] | None:
     """Share payload: persistent id + badge inputs, ``None`` when unknown."""
     summary = get_submission_summary(submission_id, home=home)
     if summary is None:
@@ -149,28 +188,22 @@ def decision_dashboard(home: Path | None = None) -> dict[str, Any]:
     without mint/review/decision records shows ``stale`` (the
     live-paper palette for "no recent re-review").
     """
-    try:
-        from scitex_agentic_journal._re_review_badge._types import verdict_to_status
-    except Exception:
-        verdict_to_status = None  # type: ignore[assignment]
+    from scitex_agentic_journal._re_review_badge._types import verdict_to_status
 
     root = _submission_home(home)
     rows: list[dict[str, Any]] = []
-    counts: dict[str, int] = {"verified": 0, "concerns": 0, "contradicted": 0, "stale": 0}
+    counts: dict[str, int] = {
+        "verified": 0,
+        "concerns": 0,
+        "contradicted": 0,
+        "stale": 0,
+    }
     for sid in submission_ids(root):
         summary = get_submission_summary(sid, home=root)
         if summary is None:
             continue
         verdict = summary.get("verdict")
-        if verdict_to_status is not None:
-            try:
-                status = verdict_to_status(verdict)
-            except Exception:
-                status = "stale"
-        else:
-            status = {"accept": "verified", "revise": "concerns", "reject": "contradicted"}.get(
-                verdict if isinstance(verdict, str) else "", "stale"
-            )
+        status = verdict_to_status(verdict)
         counts[status] = counts.get(status, 0) + 1
         rows.append(
             {
@@ -197,11 +230,12 @@ def html_payload(persistent_id: str, home: Path | None = None) -> dict[str, Any]
     """
     root = _submission_home(home)
     sub_root = root / "submissions"
-    matched: Optional[str] = None
-    badge: Optional[dict[str, Any]] = None
+    matched: str | None = None
+    badge: dict[str, Any] | None = None
     if sub_root.is_dir():
-        for child in sorted(sub_root.iterdir()):
-            if not child.is_dir():
+        for sid in submission_ids(root):
+            child = submission_dir(sid, root)
+            if child is None:
                 continue
             pid_doc = _safe_read_json(child / "persistent_id.json")
             if pid_doc is None:
@@ -218,23 +252,19 @@ def html_payload(persistent_id: str, home: Path | None = None) -> dict[str, Any]
             "renderer": "live-paper-ports",
             "badge": None,
         }
-    try:
-        from scitex_agentic_journal._re_review_badge._resolver import resolve_badge_for_paper
-    except Exception:
-        resolve_badge_for_paper = None  # type: ignore[assignment]
-    if resolve_badge_for_paper is not None:
-        try:
-            resolved = resolve_badge_for_paper(persistent_id, home=root)
-        except Exception:
-            resolved = None
-        if resolved is not None:
-            badge = {
-                "status": resolved.status,
-                "last_reviewed_at": resolved.last_reviewed_at,
-                "reviewer": resolved.reviewer,
-                "log_url": resolved.log_url,
-                "notes": resolved.notes,
-            }
+    from scitex_agentic_journal._re_review_badge._resolver import (
+        resolve_badge_for_paper,
+    )
+
+    resolved = resolve_badge_for_paper(persistent_id, home=root)
+    if resolved is not None:
+        badge = {
+            "status": resolved.status,
+            "last_reviewed_at": resolved.last_reviewed_at,
+            "reviewer": resolved.reviewer,
+            "log_url": resolved.log_url,
+            "notes": resolved.notes,
+        }
     return {
         "persistent_id": persistent_id,
         "found": True,

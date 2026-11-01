@@ -1,36 +1,32 @@
-/* Agentic Journal leaf content styles.
- *
- * The header row stays 100% SDK-owned (`stx-app-header` + picker) —
- * this file styles only the leaf's own archive table and buttons.
- * Theme-safe: every color goes through a shell variable with a
- * neutral fallback, so the rules hold in dark and light mode.
- * No outer margins: the shell owns the page gutter.
- */
-
-.aj-page table {
-  border-collapse: collapse;
-  margin: 0;
-}
-
-.aj-page th,
-.aj-page td {
-  padding: 6px 12px;
-  text-align: left;
-  border-bottom: 1px solid var(--workspace-border-subtle, #3a3a3a);
-}
-
-.aj-page th {
-  font-weight: 600;
-  font-size: 0.8rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-secondary, #a0a0a0);
-}
-
-.aj-page button {
-  background: transparent;
-  color: inherit;
-  border: 1px solid currentColor;
-  padding: 8px 16px;
-  cursor: pointer;
-}
+/* Leaf content only: header, tabs, outer viewport and palette remain SDK-owned. */
+.aj-page { padding: 20px; overflow: auto; min-height: 0; }
+.aj-intro { padding-block: 12px 24px; }
+.aj-intro h1 { max-width: 28ch; font-size: clamp(24px, 3vw, 36px); line-height: 1.2; }
+.aj-page h1, .aj-page h2, .aj-page h3 { color: var(--text-primary); }
+.aj-page h2 { font-size: 18px; margin-top: 0; }
+.aj-page p, .aj-page li { line-height: 1.65; }
+.aj-lead, .aj-intro > p { max-width: 85ch; color: var(--text-secondary); }
+.aj-eyebrow { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+.aj-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; margin-block: 16px; }
+.aj-card { padding: 20px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--bg-surface); margin-bottom: 16px; }
+.aj-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-block: 20px; }
+.aj-action { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 8px 14px; border: 1px solid var(--border-default); border-radius: 4px; background: transparent; color: var(--text-primary); font: inherit; text-decoration: none; cursor: pointer; }
+.aj-action--primary { background: var(--accent); border-color: var(--accent); color: var(--bg-page); }
+.aj-action:focus-visible, .aj-intake textarea:focus-visible { outline: 2px solid var(--focus-ring-color); outline-offset: 3px; }
+.aj-action:disabled { opacity: .6; cursor: wait; }
+.aj-note { padding: 12px 16px; border: 1px solid var(--border-muted); border-radius: 4px; color: var(--text-secondary); background: var(--bg-surface); }
+.aj-steps { display: grid; gap: 16px; padding-left: 24px; }
+.aj-steps span { display: block; color: var(--text-secondary); }
+.aj-intake { display: grid; gap: 12px; }
+.aj-intake textarea { box-sizing: border-box; width: 100%; resize: vertical; font: inherit; padding: 10px; border: 1px solid var(--border-default); border-radius: 4px; background: var(--bg-page); color: var(--text-primary); }
+.aj-confirm { display: flex; align-items: start; gap: 8px; }
+.aj-confirm input { margin-top: 5px; }
+.aj-table-wrap { overflow-x: auto; }
+.aj-page table { width: 100%; border-collapse: collapse; }
+.aj-page th, .aj-page td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-muted); }
+.aj-page th { font-weight: 600; color: var(--text-secondary); }
+.aj-badge { display: inline-block; border: 1px solid var(--border-default); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+.aj-facts { display: grid; grid-template-columns: minmax(100px, auto) 1fr; gap: 8px 16px; }
+.aj-facts dd { margin: 0; overflow-wrap: anywhere; }
+.aj-page pre { overflow-x: auto; }
+@media (max-width: 600px) { .aj-page { padding: 12px; } .aj-card { padding: 16px; } .aj-facts { grid-template-columns: 1fr; } }

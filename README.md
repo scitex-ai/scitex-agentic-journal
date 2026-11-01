@@ -18,7 +18,7 @@
 
 ARA-native AI-reviewed open publishing on top of [Clew](https://github.com/ywatanabe1989/scitex-clew).
 
-> **Status:** pre-alpha scaffold (v0.1.0-alpha). README + minimum package skeleton. M1 (submission gate) implementation pending — tracked under [open issues](https://github.com/ywatanabe1989/scitex-agentic-journal/issues).
+> **Status:** alpha. Structural intake, review/decision engines, identifier/publish interfaces and a leaf-owned author portal are implemented. Their availability depends on configured adapters; an intake pass is not a completed scientific review or publication. See [the author portal contract](docs/dev/author-portal.md) for web behavior and limits.
 
 ## What it is
 
@@ -136,7 +136,7 @@ scitex-agentic-journal   --hosts-on-> scitex-hub          (reviewer dashboard, a
 - After acceptance, agentic-journal hands the manuscript bundle (LaTeX + claims + DAG + assets) to `scitex-live-paper` for rendering.
 - Hosting (web UI, Auth via Gitea, app surface) is provided by `scitex-hub`. Agentic-journal ships an optional Django app for the reviewer dashboard.
 
-## First milestone (M1, "submission gate")
+## Structural intake and subsequent workflows
 
 1. Define `Submission` schema (manuscript bundle + ORCID + code repo URL + clew project path).
 2. Implement gate 1 only: structural checks against the submitted bundle — no AI review yet.
@@ -146,13 +146,13 @@ scitex-agentic-journal   --hosts-on-> scitex-hub          (reviewer dashboard, a
 3. CLI: `scitex-agentic-journal submit ./paper/` returns gate-1 verdict (pass / fail + reasons).
 4. No mocks. No silent fallbacks. Real errors with guidance.
 
-Subsequent milestones (tracked as issues):
+Subsequent workflow modules (adapter configuration is required):
 
 - **M2** — AI review (Spartan Qwen reviewer agents): reproducibility re-run, claim verify, novelty triangulation, methodology critique.
 - **M3** — Editorial decision engine (accept / revise / reject) over the review record.
 - **M4** — Persistent ID (sandbox → Zenodo → JaLC).
 - **M5** — Publish hand-off to `scitex-live-paper`.
-- **M6** — Reviewer dashboard on `scitex-hub` (Django app).
+- **M6** — Leaf-owned author portal and authenticated record reads (Django app).
 - **M7** — MCP server for agents.
 
 ## Installation
@@ -199,15 +199,15 @@ cloneability check (#3) live under [`examples/`](examples/README.md).
 
 ## 4 Interfaces
 
-This package exposes four stable interfaces, each tracked by its own
-milestone:
+The alpha package exposes the following interfaces. Inspect the installed help
+and configured adapters before running workflows:
 
-| Interface | Surface | Status | Tracking |
-|---|---|---|---|
-| **CLI** | `scitex-agentic-journal {submit,review,decide,publish}` | scaffolded (stub subcommands) | #5 M1 CLI |
-| **Library** | `scitex_agentic_journal._gate1.{verify_orcid, clone_code_repo, cloned_code_repo, GateFailure, …}` | ORCID #2 ✓ / code-repo #3 ✓ / DAG #4 pending | #2–#4 |
-| **MCP server** | `scitex_agentic_journal._mcp` (fastmcp) | not started | post-MVP |
-| **Django app** | `scitex_agentic_journal._django` (reviewer dashboard) | not started | #6 M6 |
+| Interface | Surface | Current boundary |
+|---|---|---|
+| **CLI** | `scitex-agentic-journal {submit,review,decide,publish}` | Real workflow modules; configured adapters determine execution |
+| **Library** | `_gate1`, `_submit`, `_review`, `_decide`, `_publish` | Structural checks and persisted workflow records |
+| **MCP server** | `scitex_agentic_journal._mcp` | Tool catalogue and FastMCP server; inspect each tool's execution contract |
+| **Django app** | `scitex_agentic_journal._django` | Author guidance, explicit text intake, per-user archive, recorded review/decision reads |
 
 ## Part of SciTeX
 

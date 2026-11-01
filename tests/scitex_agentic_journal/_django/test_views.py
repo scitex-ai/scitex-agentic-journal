@@ -248,10 +248,10 @@ def _persisted(_home: Path) -> Path:
     return _home
 
 
-def _body() -> str:
+def _body(section="authors") -> str:
     # Act
     # GET the plugin page and decode.
-    return _client().get("/aj/app/").content.decode("utf-8")
+    return _client().get(f"/aj/app/?section={section}").content.decode("utf-8")
 
 
 def test_app_page_status_ok(_home: Path) -> None:
@@ -350,7 +350,7 @@ def test_app_page_lists_persisted_submission(_persisted: Path) -> None:
     # Arrange
     _persisted
     # Act
-    body = _body()
+    body = _body("archive")
     # Assert
     assert "sub_2026_10_19_aaaaaa" in body
 
@@ -359,7 +359,7 @@ def test_app_page_lists_persisted_verdict(_persisted: Path) -> None:
     # Arrange
     _persisted
     # Act
-    body = _body()
+    body = _body("archive")
     # Assert
     assert "accept" in body
 
@@ -383,7 +383,7 @@ def test_app_page_header_shows_title(_home: Path) -> None:
     # Act
     body = _body()
     # Assert
-    assert "SciTeX Agentic Journal" in body
+    assert 'data-app-title="Agentic Journal"' in body
 
 
 def test_user_scoped_header_opts_into_shared_scope_picker(_home: Path) -> None:
@@ -406,10 +406,12 @@ def test_app_page_header_uses_sdk_mount_and_package_version(_home: Path) -> None
     # Assert
     from scitex_agentic_journal import __version__
 
-    assert body.count("data-stx-app-header") == 1
-    assert f'data-app-version="{__version__}"' in body
-    assert "scitex_sdk/ui/js/app/app-header.js" in body
-    assert '<header class="stx-app-header"' not in body
+    assert (
+        body.count("data-stx-app-header") == 1
+        and f'data-app-version="{__version__}"' in body
+        and "scitex_sdk/ui/js/app/app-header.js" in body
+        and '<header class="stx-app-header"' not in body
+    )
 
 
 def test_app_page_template_wires_picker_tag() -> None:
@@ -473,13 +475,13 @@ def test_app_page_accepts_project_param(_projects: Path) -> None:
     assert response.status_code == 200
 
 
-def test_app_page_has_no_leaf_h1(_home: Path) -> None:
+def test_app_page_has_one_content_heading_and_sdk_header(_home: Path) -> None:
     # Arrange
     _home
     # Act
     body = _body()
     # Assert
-    assert "<h1" not in body
+    assert body.count("<h1") == 1 and 'data-stx-app-header' in body
 
 
 def test_app_page_has_no_template_comment_leak(_home: Path) -> None:

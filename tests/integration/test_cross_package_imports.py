@@ -33,7 +33,7 @@ CROSS_PACKAGE_IMPORTS: list[str] = [
     "scitex_sdk.app",
     "scitex_sdk.app.embed",
     "scitex_sdk.ui.branding",
-    "scitex_ui.project_scope",
+    "scitex_sdk.ui.project_scope",
 ]
 
 
