@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+
 from scitex_agentic_journal._django import (
     APP_LABEL,
     APP_MANIFEST_PATH,
@@ -251,24 +252,14 @@ def test_app_config_name_matches_app_name() -> None:
     assert name == APP_NAME
 
 
-def test_app_config_prefers_sdk_base() -> None:
-    # Arrange
-    # guarded import: SDK base where installed, plain
-    # Django AppConfig where it isn't (this container).
-    from django.apps import AppConfig
-    from scitex_agentic_journal._django.apps import (
-        SciTeXAgenticJournalConfig,
-    )
+def test_app_config_uses_required_sdk_base() -> None:
+    # Arrange: the SDK is a required package dependency.
+    from scitex_sdk.app.embed import ScitexAppConfig
 
-    # Act
-    try:
-        from scitex_sdk.app.embed import ScitexAppConfig
-    except ImportError:
-        expected = AppConfig
-    else:
-        expected = ScitexAppConfig
-    # Assert
-    assert issubclass(SciTeXAgenticJournalConfig, expected)
+    from scitex_agentic_journal._django.apps import SciTeXAgenticJournalConfig
+
+    # Act / Assert: a plain Django fallback loses the shared app contract.
+    assert issubclass(SciTeXAgenticJournalConfig, ScitexAppConfig)
 
 
 def test_urls_reverse_submission_detail() -> None:
@@ -314,6 +305,7 @@ def test_handler_submit_rejects_empty_post_without_traceback() -> None:
     # Arrange
     # POST with no JSON body must 400, never 503, never raise.
     from django.test import RequestFactory
+
     from scitex_agentic_journal._django.handlers import submit
 
     request = RequestFactory().post("/aj/submit/")
@@ -326,6 +318,7 @@ def test_handler_submit_rejects_empty_post_without_traceback() -> None:
 def test_view_submissions_index_returns_placeholder_flag() -> None:
     # Arrange
     from django.test import RequestFactory
+
     from scitex_agentic_journal._django.views import submissions_index
 
     request = RequestFactory().get("/")
