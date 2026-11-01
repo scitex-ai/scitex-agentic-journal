@@ -366,14 +366,13 @@ def test_app_page_lists_persisted_verdict(_persisted: Path) -> None:
 
 def test_app_page_mounts_shared_app_header(_home: Path) -> None:
     # Arrange
-    # shared SDK header row (server-rendered, scholar pattern) —
-    # one row with the title span plus the picker slot.
+    # One SDK-owned mount declaration, rather than a copied server row.
     _home
     # Act
     body = _body()
     # Assert
     assert (
-        '<header class="stx-app-header">' in body
+        'data-stx-app-header' in body
         and "scitex_sdk/ui/css/app/app-header.css" in body
     )
 
@@ -387,23 +386,28 @@ def test_app_page_header_shows_title(_home: Path) -> None:
     assert "SciTeX Agentic Journal" in body
 
 
-def test_app_page_header_has_picker_slot(_home: Path) -> None:
+def test_user_scoped_header_does_not_force_project_picker(_home: Path) -> None:
     # Arrange
     _home
     # Act
     body = _body()
     # Assert
-    assert "stx-app-header__slot--project-selector" in body
+    assert "data-stx-project-picker" not in body
 
 
-def test_app_page_has_no_js_header_mount(_home: Path) -> None:
+def test_app_page_header_uses_sdk_mount_and_package_version(_home: Path) -> None:
     # Arrange
-    # the JS-mount div was the duplicated header — server markup only.
+    # One SDK declaration receives the installed leaf package identity.
     _home
     # Act
     body = _body()
     # Assert
-    assert "data-stx-app-header" not in body
+    from scitex_agentic_journal import __version__
+
+    assert body.count("data-stx-app-header") == 1
+    assert f'data-app-version="{__version__}"' in body
+    assert "scitex_sdk/ui/js/app/app-header.js" in body
+    assert '<header class="stx-app-header"' not in body
 
 
 def test_app_page_template_wires_picker_tag() -> None:

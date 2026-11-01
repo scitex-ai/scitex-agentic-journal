@@ -1,5 +1,5 @@
 {% extends "scitex_sdk/app/app_shell.html" %}
-{% load i18n scitex_project_picker static %}{% comment %}
+{% load i18n scitex_project_picker static scitex_static %}{% comment %}
 Agentic Journal plugin page (server-rendered leaf).
 
 Extends the SDK app shell and fills only `scitex_app_content` — the
@@ -18,13 +18,12 @@ host provider (standalone: local projects folder). (NOTE: this must
 be a {% comment %} block, not {# #}: Django only strips single-line
 {# #} comments, so a multi-line {# #} would leak raw into the page.)
 {% endcomment %}
-<link rel="stylesheet" href="{% static 'scitex_sdk/ui/css/app/app-header.css' %}">
-<header class="stx-app-header">
-  <span class="stx-app-header__title">{% trans "SciTeX Agentic Journal" %}</span>
-  <div class="stx-app-header__slot--project-selector">
+<link rel="stylesheet" href="{% app_static 'scitex_sdk/ui/css/app/app-header.css' %}">
+<div data-stx-app-header data-app-title="{% trans 'SciTeX Agentic Journal' %}"
+     data-app-version="{{ app_version }}">
     {% scitex_project_picker scope=app_scope current=current_project %}
-  </div>
-</header>
+</div>
+<script type="module" src="{% app_static 'scitex_sdk/ui/js/app/app-header.js' %}"></script>
 <link rel="stylesheet" href="{% static 'scitex_agentic_journal/css/app.css' %}">
 <main class="aj-page">
   <p>AI-reviewed open publishing on top of Clew.</p>
