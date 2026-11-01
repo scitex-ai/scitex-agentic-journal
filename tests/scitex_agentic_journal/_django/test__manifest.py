@@ -258,8 +258,10 @@ def test_app_config_uses_required_sdk_base() -> None:
 
     from scitex_agentic_journal._django.apps import SciTeXAgenticJournalConfig
 
-    # Act / Assert: a plain Django fallback loses the shared app contract.
-    assert issubclass(SciTeXAgenticJournalConfig, ScitexAppConfig)
+    # Act
+    uses_sdk = issubclass(SciTeXAgenticJournalConfig, ScitexAppConfig)
+    # Assert: a plain Django fallback loses the shared app contract.
+    assert uses_sdk
 
 
 def test_urls_reverse_submission_detail() -> None:
