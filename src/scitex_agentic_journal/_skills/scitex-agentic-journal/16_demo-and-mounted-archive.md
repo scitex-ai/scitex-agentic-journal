@@ -30,11 +30,13 @@ and documented fleet/container corpus locations. A LivePaper render bundle
 Do not substitute one format for the other just because they share a project
 name. Placeholder ORCID and registered/demo claims are not scientific evidence.
 
-Current mounted `app_page` resolves the project picker but reads
-`_leaf.list_archive()` from the process-wide submission home. The picker alone
-does not establish project-filtered archive storage. Diagnose that host/storage
-contract before asserting per-project isolation. Similarly, a LivePaper port
-provider or translator does not prove this Journal UI has adopted its viewer.
+Mounted `app_page` reads the authenticated user's archive through the generic
+host user-home provider; standalone mode retains the explicit journal-home
+setting. The app is user-scoped, so its project picker does not filter the
+archive or change the host's selected project. See
+[30_django-and-hub.md](30_django-and-hub.md) for resolution and fail-closed errors.
+A LivePaper port provider or translator does not prove the Journal portal embeds
+that viewer.
 
 For GUI verification, use the actual mounted page and installed leaf version,
 inspect the SDK header/picker, and distinguish existing user submissions from

@@ -58,7 +58,7 @@ sub-package only exposes the standalone import path during alpha.
 
 ### Architecture (30–39)
 
-- [30_django-and-hub.md](30_django-and-hub.md) — `_django` reviewer dashboard mounted into scitex-hub via `apps/workspace/agentic_journal_app`
+- [30_django-and-hub.md](30_django-and-hub.md) — leaf-owned author portal, authenticated archive storage, record reads and upload durability
 - [31_mcp-and-agents.md](31_mcp-and-agents.md) — `_mcp` server: submit / review / decide / publish tools for AI agents
 
 ## When NOT to use this skill

@@ -47,7 +47,8 @@ def test_load_example_writes_three_records(tmp_path: Path) -> None:
     _examples.load_example_project(bundle, home=tmp_path / "home")
     # Assert
     names = sorted(
-        p.name for p in (tmp_path / "home" / "submissions" / "example-project-mnist").iterdir()
+        p.name
+        for p in (tmp_path / "home" / "submissions" / "example-project-mnist").iterdir()
     )
     assert names == ["decision.json", "gate1.json", "persistent_id.json"]
 
@@ -59,9 +60,9 @@ def test_load_example_gate1_carries_example_flag(tmp_path: Path) -> None:
     _examples.load_example_project(bundle, home=tmp_path / "home")
     # Assert
     payload = json.loads(
-        (tmp_path / "home" / "submissions" / "example-project-mnist" / "gate1.json").read_text(
-            encoding="utf-8"
-        )
+        (
+            tmp_path / "home" / "submissions" / "example-project-mnist" / "gate1.json"
+        ).read_text(encoding="utf-8")
     )
     assert payload["example"] is True
 
@@ -73,9 +74,13 @@ def test_load_example_decision_is_labeled_accept(tmp_path: Path) -> None:
     _examples.load_example_project(bundle, home=tmp_path / "home")
     # Assert
     payload = json.loads(
-        (tmp_path / "home" / "submissions" / "example-project-mnist" / "decision.json").read_text(
-            encoding="utf-8"
-        )
+        (
+            tmp_path
+            / "home"
+            / "submissions"
+            / "example-project-mnist"
+            / "decision.json"
+        ).read_text(encoding="utf-8")
     )
     assert payload["record"]["verdict"] == "accept"
 
@@ -142,3 +147,41 @@ def test_load_example_malformed_bundle_raises(tmp_path: Path) -> None:
     # Assert
     with pytest.raises(SubmissionLoadError):
         _examples.load_example_project(bundle, home=tmp_path / "home")
+
+
+def test_example_loader_preserves_unexpected_existing_content(tmp_path: Path) -> None:
+    # Arrange
+    bundle = _bundle(tmp_path)
+    home = tmp_path / "home"
+    target = home / "submissions" / _examples.EXAMPLE_SUBMISSION_ID
+    target.mkdir(parents=True)
+    evidence = target / "important-research.txt"
+    evidence.write_text("Preserve this user file")
+    # Act
+    failure = None
+    try:
+        _examples.load_example_project(bundle, home=home)
+    except _examples.ExampleConflict as exc:
+        failure = exc
+    # Assert
+    assert (
+        failure is not None
+        and evidence.read_text() == "Preserve this user file"
+        and list(target.iterdir()) == [evidence]
+    )
+
+
+def test_example_loader_never_follows_existing_target_alias(tmp_path: Path) -> None:
+    # Arrange
+    bundle = _bundle(tmp_path)
+    home = tmp_path / "home"
+    collection = home / "submissions"
+    collection.mkdir(parents=True)
+    other = tmp_path / "other-user"
+    other.mkdir()
+    target = collection / _examples.EXAMPLE_SUBMISSION_ID
+    target.symlink_to(other, target_is_directory=True)
+    # Act
+    # Assert
+    with pytest.raises(_examples.ExampleConflict):
+        _examples.load_example_project(bundle, home=home)
