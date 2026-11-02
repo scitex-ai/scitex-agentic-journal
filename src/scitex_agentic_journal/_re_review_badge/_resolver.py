@@ -24,13 +24,11 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Optional
 
 from scitex_agentic_journal._re_review_badge._types import (
     ReReviewBadge,
     verdict_to_status,
 )
-
 
 #: Prefix prepended to the M2 adapter id when populating
 #: :attr:`ReReviewBadge.reviewer`. Lets the live-paper UI distinguish
@@ -47,13 +45,15 @@ def _submission_home() -> Path:
     return Path.home() / ".scitex" / "agentic-journal"
 
 
-def _safe_read_json(path: Path) -> Optional[dict]:
+def _safe_read_json(path: Path) -> dict | None:
     """Read JSON, returning ``None`` on any failure shape.
 
     The resolver is called from the hub's request path; a malformed
     record on disk must never crash the page render. Empty / missing /
     invalid → no badge.
     """
+    if path.is_symlink():
+        return None
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
@@ -61,9 +61,7 @@ def _safe_read_json(path: Path) -> Optional[dict]:
     return payload if isinstance(payload, dict) else None
 
 
-def _find_submission_for_paper(
-    paper_persistent_id: str, home: Path
-) -> Optional[Path]:
+def _find_submission_for_paper(paper_persistent_id: str, home: Path) -> Path | None:
     """Return the ``submissions/<id>/`` dir whose
     ``persistent_id.json.record.persistent_id`` matches.
 
@@ -72,10 +70,10 @@ def _find_submission_for_paper(
     ``submissions/`` parent.
     """
     submissions_root = home / "submissions"
-    if not submissions_root.is_dir():
+    if submissions_root.is_symlink() or not submissions_root.is_dir():
         return None
     for submission_dir in sorted(submissions_root.iterdir()):
-        if not submission_dir.is_dir():
+        if submission_dir.is_symlink() or not submission_dir.is_dir():
             continue
         pid_path = submission_dir / "persistent_id.json"
         if not pid_path.is_file():
@@ -85,7 +83,9 @@ def _find_submission_for_paper(
             continue
         # The M4 persister wraps the record under ``record``; also
         # accept top-level for back-compat with hand-written records.
-        record = payload.get("record") if isinstance(payload.get("record"), dict) else None
+        record = (
+            payload.get("record") if isinstance(payload.get("record"), dict) else None
+        )
         candidate = None
         if record is not None:
             candidate = record.get("persistent_id")
@@ -117,7 +117,7 @@ def _review_block(review_payload: dict) -> dict:
     return review_payload
 
 
-def _notes_from_rule_hits(decision_record: dict) -> Optional[str]:
+def _notes_from_rule_hits(decision_record: dict) -> str | None:
     """Build a one-line notes string from the first failing rule hit.
 
     The M3 engine emits a ``RuleHit`` per evaluated rule (passed and
@@ -143,9 +143,9 @@ def _notes_from_rule_hits(decision_record: dict) -> Optional[str]:
 def resolve_badge_for_paper(
     paper_persistent_id: str,
     *,
-    home: Optional[Path] = None,
-    log_url: Optional[str] = None,
-) -> Optional[ReReviewBadge]:
+    home: Path | None = None,
+    log_url: str | None = None,
+) -> ReReviewBadge | None:
     """Return a :class:`ReReviewBadge` for ``paper_persistent_id``.
 
     Parameters
@@ -186,15 +186,14 @@ def resolve_badge_for_paper(
     decision_record = _decision_block(decision_payload)
     status = verdict_to_status(decision_record.get("verdict"))
 
-    last_reviewed_at = (
-        decision_record.get("decided_at")
-        or decision_payload.get("written_at_utc")
+    last_reviewed_at = decision_record.get("decided_at") or decision_payload.get(
+        "written_at_utc"
     )
     if not isinstance(last_reviewed_at, str):
         last_reviewed_at = None
 
     review_payload = _safe_read_json(submission_dir / "review.json")
-    reviewer: Optional[str] = None
+    reviewer: str | None = None
     if review_payload is not None:
         review_record = _review_block(review_payload)
         adapter = review_record.get("adapter")

@@ -561,3 +561,13 @@ def test_load_example_malformed_bundle_is_422(_home: Path, tmp_path: Path) -> No
             os.environ["SCITEX_AGENTIC_JOURNAL_EXAMPLE_BUNDLE"] = original
     # Assert
     assert response.status_code == 422
+
+
+@pytest.mark.parametrize("reserved", ["bundle.yaml", "./bundle.yaml"])
+def test_submit_refuses_extra_file_manifest_override_before_staging(_home: Path, reserved: str) -> None:
+    # Arrange
+    payload = {"bundle_yaml": "orcid_id: original\n", "files": {reserved: "orcid_id: replacement\n"}}
+    # Act
+    response = _client().post("/aj/submit/", data=json.dumps(payload), content_type="application/json")
+    # Assert
+    assert response.status_code == 400 and not (_home / "staging").exists()

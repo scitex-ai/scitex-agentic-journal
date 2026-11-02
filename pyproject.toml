@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scitex-agentic-journal"
-version = "0.1.0a2"
+version = "0.1.0a4"
 description = "ARA-native AI-reviewed open publishing on top of Clew. Part of SciTeX."
 readme = "README.md"
 license = "AGPL-3.0-only"
@@ -50,15 +50,9 @@ dependencies = [
     # Floor tracks the supervision line (figrecipe >=0.60.1); we run
     # 0.62.4.
     "scitex-dev>=0.62.4",
-    # UI shell + components (live-paper viewer when ready).
-    "scitex-ui>=0.1.0",
-    # Embed + standalone-GUI contract (ScitexAppConfig, serve_gui,
-    # run_standalone). Floor 0.3.16: the project-scope header (manifest
-    # scope user->project, bd9c712) needs the tolerant
-    # scitex_project_picker that renders the leaf local-folder fallback
-    # when no host provider is registered — 0.3.14/0.3.15 raise
-    # ImproperlyConfigured instead (PR #58 matrix red 2026-10-24).
-    "scitex-sdk>=0.3.16",
+    # Request-local user scope keeps this personal archive independent of
+    # the host's remembered project, without writing a global preference.
+    "scitex-sdk>=0.3.17",
     # CLI surface.
     "click>=8.0",
     # ORCID + DOI HTTP backends.
@@ -99,6 +93,12 @@ all = [
 mcp = [
     "fastmcp>=2.0",
 ]
+
+[project.entry-points."scitex_dev.docs"]
+scitex-agentic-journal = "scitex_agentic_journal"
+
+[project.entry-points."scitex_dev.skills"]
+scitex-agentic-journal = "scitex_agentic_journal"
 
 [project.scripts]
 scitex-agentic-journal = "scitex_agentic_journal._cli:main"

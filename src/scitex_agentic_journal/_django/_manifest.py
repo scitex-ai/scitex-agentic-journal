@@ -8,10 +8,10 @@ version derives at runtime from the installed ``pip_package`` dist);
 ``scope`` is optional with a closed ``user`` | ``project`` enum
 (absent means ``user``).
 
-This module mirrors those rules without importing scitex-sdk so the
-leaf stays importable (and hub-mountable) where the SDK isn't
-installed. The AppConfig always runs :func:`load_manifest`, so the
-fallback never silently loses validation.
+This helper validates manifests without importing Django or SDK runtime
+components. The embedded AppConfig uses the required SDK base and runs
+:func:`load_manifest` before its SDK startup hooks; validation failures are
+reported directly rather than hidden behind a fallback.
 """
 
 from __future__ import annotations

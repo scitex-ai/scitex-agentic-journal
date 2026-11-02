@@ -24,9 +24,9 @@ Top-level conventions (audited by ``scitex-dev ecosystem audit-all``):
   ``[mcp]`` extra exposes (§1a); today the list is empty until the
   MCP server lands post-MVP.
 
-Until the M1+ issues land, each pipeline subcommand raises a structured
-:class:`click.ClickException` pointing at its tracking issue so the
-operator gets an actionable error rather than a stub no-op.
+Pipeline subcommands delegate to the implemented submission, review, decision
+and publication modules. Execution depends on their inputs and configured
+adapters; inspecting help does not execute structural checks or a reviewer.
 """
 
 from __future__ import annotations

@@ -4,6 +4,32 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
 
 ## [Unreleased]
 
+## [0.1.0a4] - 2026-11-01
+
+### Added
+
+- Original author portal with preparation, intake, personal archive, review/revision and publication guidance using SDK-owned chrome.
+- Authenticated request-local archive resolution through the generic host user-home provider; mounted failures do not fall back to a shared service home.
+- Real per-user review/decision reads and safe single-component record identifiers.
+- Register installed documentation/skills with the shared Dev dispatcher so discovery does not depend on a central package registry entry.
+- Document demo receipts, mounted archive scope and the source-certifiable SDK AppConfig boundary; repair missing README branding links with verified canonical assets.
+
+### Fixed
+
+- Require SDK >=0.3.17 and explicitly declare the Journal header's request-local
+  user scope, preserving the host's remembered project while showing All projects.
+
+- Preserve uploaded inputs in independently checked durable snapshots before intake staging is removed; immutable retries retain subsequent reviews and decisions.
+- Stop returning fabricated passing validator checks, protect unexpected example content and record aliases, and remove the retired scitex-ui runtime dependency.
+- Use the full SciTeX Agentic Journal in-app label and square content cards/notices; keep the short launcher and browser labels.
+- Replace obsolete CLI-stub descriptions with implemented workflow contracts and executable help examples.
+
+## 0.1.0a3 — 2026-11-01
+
+- Declare literal Journal AppConfig identity and explicit required SDK inheritance so Hub can certify the plugin before Django startup.
+- Keep manifest and SDK startup errors visible instead of silently falling back to a plain Django app.
+- Load the shared SDK header stylesheet so the canonical row renders consistently on mounted pages.
+
 ## [0.1.0a2] - 2026-11-01
 
 ### Fixed

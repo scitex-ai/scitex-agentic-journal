@@ -54,19 +54,18 @@ The MVP collapses the long pipeline into the smallest end-to-end useful loop:
    publish -> Live Paper (`scitex-live-paper`)            [05_publish-handoff.md]
 ```
 
-## Milestones
+## Implemented modules and boundaries
 
-| Milestone | Scope | Status |
-|-----------|-------|--------|
-| M1 | Submission gate (gate-1 only, no AI review) | gate-1 checks landed; CLI `submit` pending |
-| M2 | AI review (gate-2): reproducibility + claim verify + novelty + methodology | pending |
-| M3 | Editorial decision engine (gate-3) | pending |
-| M4 | Persistent ID (sandbox → Zenodo → JaLC) | pending |
-| M5 | Publish hand-off to `scitex-live-paper` | pending |
-| M6 | Reviewer dashboard on `scitex-hub` (Django app) | pending |
-| M7 | MCP server for agents | pending |
+`_submit` runs structural intake. `_review` contains local-deterministic and
+configured Qwen adapters; `_decide` evaluates versioned rules. `_publish`
+contains identifier backends and the LivePaper handoff. Their existence does
+not prove a configured provider has executed or a DOI has been registered.
 
-GitHub issues `#2`–`#9` track the MVP loop. Anything beyond is deferred.
+The `_django` author portal offers guidance, explicit text-bundle intake and
+actual record reads in an authenticated user archive. It has no web review,
+revision or publishing action. See [30_django-and-hub.md](30_django-and-hub.md).
+The `_mcp` catalogue/server is implemented; inspect individual tool handlers
+rather than treating every catalogue entry as a completed workflow.
 
 ## Dependency direction
 

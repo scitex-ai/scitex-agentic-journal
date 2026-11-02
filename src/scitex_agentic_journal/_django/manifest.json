@@ -1,12 +1,13 @@
 {
+  "scope_capabilities": {"user": true, "project": false},
   "name": "agentic_journal_app",
   "slug": "agentic-journal",
   "label": "Agentic Journal",
   "pip_package": "scitex-agentic-journal",
   "icon": "fas fa-book-open",
   "license": "AGPL-3.0",
-  "scope": "project",
-  "description": "ARA-native AI-reviewed open publishing on top of Clew. Reviewer dashboard + submission gate UI.",
+  "scope": "user",
+  "description": "Author guidance, structural intake and per-user journal records built on Clew.",
   "homepage": "https://github.com/ywatanabe1989/scitex-agentic-journal",
   "dependencies": {
     "python": [],

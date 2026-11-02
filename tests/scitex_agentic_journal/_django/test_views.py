@@ -39,7 +39,7 @@ def _configure_django() -> None:
             # The SDK UI config autowires dev middleware/processors in
             # ready() — explicitly off under test.
             SCITEX_UI_AUTOWIRE_INSPECTOR=False,
-        STATIC_URL="/static/",
+            STATIC_URL="/static/",
             STORAGES={
                 "default": {
                     "BACKEND": "django.core.files.storage.FileSystemStorage",
@@ -232,13 +232,6 @@ def test_submit_route_reverses() -> None:
 # ----- plugin app page (views.index) ----
 
 
-
-
-
-
-
-
-
 @pytest.fixture
 def _persisted(_home: Path) -> Path:
     # Arrange
@@ -255,12 +248,10 @@ def _persisted(_home: Path) -> Path:
     return _home
 
 
-
-
-def _body() -> str:
+def _body(section="authors") -> str:
     # Act
     # GET the plugin page and decode.
-    return _client().get("/aj/app/").content.decode("utf-8")
+    return _client().get(f"/aj/app/?section={section}").content.decode("utf-8")
 
 
 def test_app_page_status_ok(_home: Path) -> None:
@@ -359,7 +350,7 @@ def test_app_page_lists_persisted_submission(_persisted: Path) -> None:
     # Arrange
     _persisted
     # Act
-    body = _body()
+    body = _body("archive")
     # Assert
     assert "sub_2026_10_19_aaaaaa" in body
 
@@ -368,20 +359,22 @@ def test_app_page_lists_persisted_verdict(_persisted: Path) -> None:
     # Arrange
     _persisted
     # Act
-    body = _body()
+    body = _body("archive")
     # Assert
     assert "accept" in body
 
 
 def test_app_page_mounts_shared_app_header(_home: Path) -> None:
     # Arrange
-    # shared SDK header row (server-rendered, scholar pattern) —
-    # one row with the title span plus the picker slot.
+    # One SDK-owned mount declaration, rather than a copied server row.
     _home
     # Act
     body = _body()
     # Assert
-    assert '<header class="stx-app-header">' in body
+    assert (
+        'data-stx-app-header' in body
+        and "scitex_sdk/ui/css/app/app-header.css" in body
+    )
 
 
 def test_app_page_header_shows_title(_home: Path) -> None:
@@ -390,26 +383,35 @@ def test_app_page_header_shows_title(_home: Path) -> None:
     # Act
     body = _body()
     # Assert
-    assert "SciTeX Agentic Journal" in body
+    assert 'data-app-title="SciTeX Agentic Journal"' in body
 
 
-def test_app_page_header_has_picker_slot(_home: Path) -> None:
+def test_user_scoped_header_opts_into_shared_scope_picker(_home: Path) -> None:
     # Arrange
+    _home
+    # Act
+    from django.test import override_settings
+    with override_settings(SCITEX_PROJECT_PROVIDER_URL="/aj/api/projects"):
+        body = _body()
+    # Assert
+    assert body.count("data-stx-project-picker") == 1 and 'data-allow-user-scope="true"' in body
+
+
+def test_app_page_header_uses_sdk_mount_and_package_version(_home: Path) -> None:
+    # Arrange
+    # One SDK declaration receives the installed leaf package identity.
     _home
     # Act
     body = _body()
     # Assert
-    assert "stx-app-header__slot--project-selector" in body
+    from scitex_agentic_journal import __version__
 
-
-def test_app_page_has_no_js_header_mount(_home: Path) -> None:
-    # Arrange
-    # the JS-mount div was the duplicated header — server markup only.
-    _home
-    # Act
-    body = _body()
-    # Assert
-    assert "data-stx-app-header" not in body
+    assert (
+        body.count("data-stx-app-header") == 1
+        and f'data-app-version="{__version__}"' in body
+        and "scitex_sdk/ui/js/app/app-header.js" in body
+        and '<header class="stx-app-header"' not in body
+    )
 
 
 def test_app_page_template_wires_picker_tag() -> None:
@@ -473,13 +475,13 @@ def test_app_page_accepts_project_param(_projects: Path) -> None:
     assert response.status_code == 200
 
 
-def test_app_page_has_no_leaf_h1(_home: Path) -> None:
+def test_app_page_has_one_content_heading_and_sdk_header(_home: Path) -> None:
     # Arrange
     _home
     # Act
     body = _body()
     # Assert
-    assert "<h1" not in body
+    assert body.count("<h1") == 1 and 'data-stx-app-header' in body
 
 
 def test_app_page_has_no_template_comment_leak(_home: Path) -> None:
@@ -527,9 +529,7 @@ def test_app_page_template_has_no_real_url_tags() -> None:
     source = _template_source()
     # Act
     code = _re.sub(r"\{#.*?#\}", "", source, flags=_re.S)
-    code = _re.sub(
-        r"{%\s*comment\s*%}.*?{%\s*endcomment\s*%}", "", code, flags=_re.S
-    )
+    code = _re.sub(r"{%\s*comment\s*%}.*?{%\s*endcomment\s*%}", "", code, flags=_re.S)
     # Assert
     assert "{% url " not in code
 
@@ -542,3 +542,25 @@ def test_app_page_route_reverses() -> None:
     url = reverse("scitex_agentic_journal:app-page")
     # Assert
     assert url.endswith("/app/")
+
+
+def test_portal_content_does_not_nest_main_landmarks(_home: Path) -> None:
+    # Arrange
+    _home
+    # Act
+    body = _body()
+    # Assert
+    assert body.count("<main") == 1 and '<section class="aj-page" id="journal-content" role="tabpanel"' in body
+
+
+def test_portal_assets_use_actual_sdk_content_fingerprints(_home: Path) -> None:
+    # Arrange
+    _home
+    from scitex_sdk.ui.templatetags.scitex_static import app_static
+
+    css = app_static("scitex_agentic_journal/css/app.css")
+    js = app_static("scitex_agentic_journal/js/author-portal.js")
+    # Act
+    body = _body()
+    # Assert
+    assert css in body and js in body and "?v=" in css and "?v=" in js

@@ -1,89 +1,88 @@
 ---
 description: |
-  [TOPIC] Django reviewer dashboard + scitex-hub integration
-  [DETAILS] How `_django` is mounted into scitex-hub via apps/workspace/agentic_journal_app, manifest contract, and URL include.
+  [TOPIC] Author portal and authenticated archive storage
+  [DETAILS] Diagnose the leaf-owned portal, host user-home capability, real record reads and durable uploaded bundles.
 tags: [scitex-agentic-journal-django-and-hub]
 ---
 
-# 07 · Django app + scitex-hub integration
+# Author portal and host integration
 
-`scitex-agentic-journal` ships an **embedded Django app** (`scitex_agentic_journal._django`) that is mounted into the SciTeX Hub deployment via a thin wrapper at `apps/workspace/agentic_journal_app/` in `scitex-cloud` (the hub repo).
+The package owns `_django/urls.py`, `views.py`, `handlers.py`, the template and
+static assets. The host mounts that URL configuration and provides authentication,
+CSRF middleware and the generic user-home capability. No Hub models are imported.
+The SDK owns the header, scope picker and content-tab chrome.
 
-This is the same `_django` pattern used by `scitex-writer`, `scitex-figrecipe`, and `scitex-todo`: the **standalone package owns the logic + templates**, and the hub repo holds a minimal wrapper that registers it.
+The manifest is user-scoped (`user: true`, `project: false`). Viewing the portal
+never changes the host's selected project. The header requires SDK >=0.3.17
+and declares `view_scope="user"`: it displays the personal All projects view
+without remembering a global selection. This is not a fabricated
+`current_scope` or a fallback from an unsupported project. The user-only
+capabilities still disable individual project options. Its sections are For authors, Prepare,
+Submit, Your submissions, Review & revision, and Publication. Guidance is not a
+claim that a reviewer, DOI provider or publication service has run.
 
-> **Status:** planned (M6 — `aj-django` + `aj-cloud-thin-wrap` board cards). Not yet implemented.
+## Storage resolution
 
-## Why `_django` lives in the standalone package, not in scitex-cloud
+`_django/_request_home.py:request_home` is authoritative for every web handler:
 
-| Principle | Consequence |
-|-----------|-------------|
-| `scitex` package = single source of truth | Backend logic lives in the standalone repo, not in Django |
-| Django is a thin wrapper | The cloud-side wrapper is `apps.py`-only + URL forwarding |
-| Self-hostable everywhere | The reviewer dashboard works in any Django project, not just scitex-cloud |
-| One canonical migration history | Migrations live with the standalone package; the hub wrapper only re-exports them |
+- When `SCITEX_USER_HOME_PROVIDER` is configured, import that dotted callable and
+  call it with the request. It must return the authenticated user's canonical
+  absolute home. Store Journal records under `<home>/.scitex/agentic-journal`.
+- A mounted request (`SCITEX_APP_MODE` other than `standalone`) requires the
+  provider and authentication. Anonymous requests get 403; missing, denied or
+  invalid storage gets 503. Do not fall back to the service account's home.
+- In standalone mode without a provider, retain CLI-compatible resolution:
+  `SCITEX_AGENTIC_JOURNAL_HOME`, then `~/.scitex/agentic-journal`.
 
-A user who installs `scitex-agentic-journal` outside scitex-cloud (e.g. into a research-group Django site) gets the same reviewer dashboard with zero extra wiring.
+The provider owns user identity/jail validation. The leaf additionally rejects
+archive aliases that escape the supplied home and does not create directories
+while discovering or listing an empty archive. Never set a process-wide home
+from a request or accept a user-home path from browser parameters.
 
-## `_django` sub-package layout (planned)
+## Record reads
 
-```
-src/scitex_agentic_journal/_django/
-├── __init__.py
-├── apps.py                  # SciTeXAgenticJournalConfig (default_auto_field, name, label)
-├── urls.py                  # /aj/, /aj/<submission_id>/, /aj/<submission_id>/review/
-├── views.py                 # Submission detail, review record, decision record (read-only views)
-├── handlers.py              # POST /aj/submit (create), POST /aj/<id>/decide (admin-only)
-├── manifest.json            # SciTeX Hub app-store manifest (icon, label, mount-point, permissions)
-├── models.py                # Submission, ReviewRecord, DecisionRecord, PersistentId
-├── migrations/
-│   └── 0001_initial.py
-├── templates/scitex_agentic_journal/
-│   ├── base.html
-│   ├── submission_detail.html
-│   ├── review_record.html
-│   └── decision_record.html
-└── static/scitex_agentic_journal/
-    └── aj.css
-```
+Relative to the mount root:
 
-## scitex-cloud wrapper (planned, aj-cloud-thin-wrap card)
+| Route | Behavior |
+|---|---|
+| `?section=archive` | This user's persisted submission summaries |
+| `submissions/<id>/` | Existing Gate-1/review/decision/identifier availability |
+| `submissions/<id>/review/` | Actual `review.json`, or 404 if absent |
+| `submissions/<id>/decision/` | Actual `decision.json`, or 404 if absent |
+| `submissions/<id>/validator/` | Recorded evidence; never synthetic passing checks |
+| `submit/` (POST) | Explicit structural intake of YAML plus UTF-8 text files |
+| `examples/example-project-mnist/load/` (POST) | Explicit labeled example records |
 
-`apps/workspace/agentic_journal_app/` in scitex-cloud is intentionally small:
+IDs are single bounded ASCII components; path traversal and symlinked submission
+folders/record files are not followed. These endpoints do not make private
+archives public just because a decision says accept. The admin endpoint exposes
+no operator actions. Web review execution, revision submission, and publishing
+are not implemented actions.
 
-```
-apps/workspace/agentic_journal_app/
-├── __init__.py
-├── apps.py                  # AgenticJournalAppConfig — wraps SciTeXAgenticJournalConfig
-├── urls.py                  # path("", include("scitex_agentic_journal._django.urls"))
-└── tests/
-    └── test_mount.py        # smoke: import works, reverse('aj:submission-detail', args=[1]) returns a URL
-```
+## Uploaded asset lifecycle
 
-The wrapper exists so the hub's `apps/workspace/__init__.py` registration list stays uniform, so the hub's URL routing knows the mount-point, and so deployment can disable the journal app (e.g. for a hub deploy that doesn't host journal traffic) by simply not registering the wrapper.
+`handlers.submit` limits YAML/text uploads to 2 MiB total, stages them privately,
+loads the manifest and runs the actual ORCID, Git and Clew checks. It does not
+start a paid reviewer. A passing result goes through
+`_uploads.persist_uploaded_verdict` before temporary intake is removed:
 
-The wrapper MUST NOT contain business logic. If it grows beyond URL include + apps.py, that's a smell — push the logic back into `_django` upstream.
+1. Lock a stable content-derived submission ID across processes.
+2. Copy into a unique durable `bundles/` snapshot; independently hash source and
+   copy, reject symlinks and changes during copying, and flush the files.
+3. Rebase every persisted bundle/Clew path to the snapshot and atomically commit
+   `submissions/<id>/gate1.json`.
+4. Return an identical retry unchanged only if its fingerprint and stored asset
+   checksum still match. Preserve prior review/decision records.
 
-## Reviewer dashboard
+An interrupted record commit can leave an orphan snapshot; no automatic sweeper
+is installed. Do not delete snapshots by age or assume they are disposable.
+Conflicts return 409; unavailable storage returns 503. Check the archive before
+retrying an ambiguous request. Explicit CLI `persist_verdict` keeps its existing
+minting behavior; web immutability is enforced by the upload wrapper.
 
-The dashboard is **read-mostly**:
+## Offline verification
 
-| Page | Audience | What it shows |
-|------|----------|---------------|
-| `/aj/` | submitters | Their submissions + status (`gate1-pending`, `under-review`, `decided-accept`, `decided-revise`, `decided-reject`, `published`) |
-| `/aj/<id>/` | submitters + public (once published) | Submission detail, current gate, current review status |
-| `/aj/<id>/review/` | public (once published) | Full review record (sub-reports, prompts version, adapter version) — transparency |
-| `/aj/<id>/decision/` | public (once published) | Full decision record (rules version, firing branch, outcome) — auditability |
-| `/aj/admin/` | hub admins | Operator-decision panel (manual override only on `agent-wait` blockers — NOT on accept/reject) |
-
-There is **no** "edit review" page. Reviews are immutable once written; if a reviewer agent run was buggy, the fix is a new prompt version, not editing the record.
-
-## Auth + permissions
-
-- Submission: ORCID-bound; the corresponding-author ORCID is the immutable owner.
-- Review: written by the reviewer adapter (no user identity); readable by the submitter and (once published) the public.
-- Decision: written by the rules engine; same visibility as review.
-- Admin: scitex-hub admin role (re-uses hub auth).
-
-## Why a dashboard at all (vs. CLI-only)
-
-For machine-driven submission this would be unnecessary. The dashboard exists so **human readers** of accepted papers can see the AI review and decision records — which is the whole point of "transparent AI-driven editorial". A black-box journal would defeat the design.
+Run `python -m pytest tests/scitex_agentic_journal/_django
+ tests/scitex_agentic_journal/_submit -q` on one line. Tests use real temporary
+files, authenticated request identities and locks; network tests remain opt-in.
+Do not run real submissions or review providers to verify UI layout.

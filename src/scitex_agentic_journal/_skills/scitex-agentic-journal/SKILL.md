@@ -16,7 +16,7 @@ interfaces:
 
 # scitex-agentic-journal Skill
 
-> **Status:** pre-alpha (v0.1.0-alpha). Skeleton + gate-1 implementation in progress. Skills documented here describe the **target** surface; leaves note implemented vs. planned.
+> **Status:** alpha. Use the installed CLI/API and source for implemented behavior; some leaves retain design targets. The mounted example loader constructs labeled demo records and does not execute scientific verification or editorial review.
 
 > **Interfaces:** CLI ⭐ · Python ⭐⭐ · MCP ⭐⭐ · Django ⭐⭐⭐ · Skills ⭐⭐
 
@@ -50,6 +50,7 @@ sub-package only exposes the standalone import path during alpha.
 - [13_review-and-decision.md](13_review-and-decision.md) — gate-2 AI review (reproducibility, claim verify, novelty, methodology) + gate-3 editorial decision (accept / revise / reject)
 - [14_publish-handoff.md](14_publish-handoff.md) — gate-4 persistent ID (sandbox → Zenodo → JaLC) + hand-off to scitex-live-paper
 - [15_python-api-detailed.md](15_python-api-detailed.md) — deeper Python-surface walk-through beyond 03_python-api.md
+- [16_demo-and-mounted-archive.md](16_demo-and-mounted-archive.md) — distinguish demo records, mounted archive context and provider integration
 
 ### Configuration & state (20–29)
 
@@ -57,7 +58,7 @@ sub-package only exposes the standalone import path during alpha.
 
 ### Architecture (30–39)
 
-- [30_django-and-hub.md](30_django-and-hub.md) — `_django` reviewer dashboard mounted into scitex-hub via `apps/workspace/agentic_journal_app`
+- [30_django-and-hub.md](30_django-and-hub.md) — leaf-owned author portal, authenticated archive storage, record reads and upload durability
 - [31_mcp-and-agents.md](31_mcp-and-agents.md) — `_mcp` server: submit / review / decide / publish tools for AI agents
 
 ## When NOT to use this skill

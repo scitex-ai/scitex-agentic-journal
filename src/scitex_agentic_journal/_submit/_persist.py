@@ -9,14 +9,16 @@ M2 reviewer agent (#6) — keep it stable.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import secrets
-import hashlib
+import tempfile
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from scitex_agentic_journal._submit._ids import validate_submission_id
 from scitex_agentic_journal._submit._orchestrate import Gate1Verdict
 
 GATE1_RECORD_FILENAME = "gate1.json"
@@ -89,12 +91,33 @@ def _verdict_to_jsonable(verdict: Gate1Verdict) -> dict:
     }
 
 
+def _write_json_atomic(path, payload):
+    """Commit a record only after its complete serialized bytes are flushed."""
+    descriptor, name = tempfile.mkstemp(prefix=".gate1-", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            json.dump(payload, stream, indent=2, sort_keys=True, allow_nan=False)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(name, path)
+        if hasattr(os, "O_DIRECTORY"):
+            directory = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                os.fsync(directory)
+            finally:
+                os.close(directory)
+    finally:
+        Path(name).unlink(missing_ok=True)
+
+
 def persist_verdict(
     verdict: Gate1Verdict,
     *,
     home: Path | None = None,
     now: datetime | None = None,
     key: str | None = None,
+    submission_id: str | None = None,
+    assets_sha256: str | None = None,
 ) -> PersistedSubmission:
     """Mint a submission id, write the verdict as JSON, return the receipt.
 
@@ -116,13 +139,22 @@ def persist_verdict(
         record dir instead of minting a duplicate. When ``None``
         (the CLI default) the suffix stays random.
 
+    submission_id :
+        Optional validated ID supplied by the locked web upload wrapper. CLI
+        callers normally omit it and retain date-based minting behavior.
+    assets_sha256 :
+        Optional checksum of the durable uploaded snapshot. Web retries verify
+        this checksum before returning an existing record unchanged.
+
     Returns
     -------
     PersistedSubmission
         Submission id + paths to the written record.
     """
     root = home if home is not None else _submission_home()
-    submission_id = _mint_submission_id(now=now, key=key)
+    submission_id = validate_submission_id(
+        submission_id or _mint_submission_id(now=now, key=key)
+    )
     record_dir = root / "submissions" / submission_id
     record_dir.mkdir(parents=True, exist_ok=True)
     record_path = record_dir / GATE1_RECORD_FILENAME
@@ -135,9 +167,9 @@ def persist_verdict(
     }
     if key is not None:
         payload["bundle_sha256"] = key
-    record_path.write_text(
-        json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8"
-    )
+    if assets_sha256 is not None:
+        payload["assets_sha256"] = assets_sha256
+    _write_json_atomic(record_path, payload)
     return PersistedSubmission(
         submission_id=submission_id,
         record_path=record_path,

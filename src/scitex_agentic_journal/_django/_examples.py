@@ -30,7 +30,6 @@ from typing import Any
 from scitex_agentic_journal._gate1 import ClewVerification, OrcidRecord
 from scitex_agentic_journal._submit import (
     Gate1Verdict,
-    SubmissionLoadError,
     load_submission,
     persist_verdict,
 )
@@ -45,6 +44,30 @@ EXAMPLE_PERSISTENT_ID = "doi:10.5555/example-project-mnist"
 """Reserved-prefix demo DOI (10.5555 is the documentation example block)."""
 
 
+class ExampleConflict(ValueError):
+    """An existing directory cannot safely be replaced by example records."""
+
+
+def _check_example_target(target):
+    if not target.exists() and not target.is_symlink():
+        return
+    if target.is_symlink() or not target.is_dir():
+        raise ExampleConflict("Existing example target must be preserved")
+    allowed = {"gate1.json", "decision.json", "persistent_id.json"}
+    for path in target.iterdir():
+        if path.name not in allowed or path.is_symlink() or not path.is_file():
+            raise ExampleConflict("Unexpected example content must be preserved")
+        try:
+            payload = json.loads(path.read_text())
+        except (OSError, ValueError, UnicodeError) as exc:
+            raise ExampleConflict(
+                "Unreadable example content must be preserved"
+            ) from exc
+        block = payload.get("record", payload) if isinstance(payload, dict) else {}
+        if not isinstance(block, dict) or block.get("example") is not True:
+            raise ExampleConflict("Non-example records must be preserved")
+
+
 class ExampleUnavailable(FileNotFoundError):
     """The example bundle is not installed where the loader looked."""
 
@@ -55,7 +78,11 @@ class ExampleUnavailable(FileNotFoundError):
 #: ``/home/ywatanabe``) keeps the fallback testable off-fleet.
 #: Graceful 404 everywhere else.
 def _fleet_fallback_bundle_dir() -> Path:
-    return Path(os.environ.get("SCITEX_FLEET_HOME", "/home/ywatanabe")) / "proj" / EXAMPLE_SUBMISSION_ID
+    return (
+        Path(os.environ.get("SCITEX_FLEET_HOME", "/home/ywatanabe"))
+        / "proj"
+        / EXAMPLE_SUBMISSION_ID
+    )
 
 
 def _candidate_bundle_dirs() -> list[Path]:
@@ -113,7 +140,11 @@ def load_example_project(
     SubmissionLoadError
         The bundle manifest is malformed (same contract as submit).
     """
-    bundle = Path(bundle_dir).expanduser() if bundle_dir is not None else default_example_bundle_dir()
+    bundle = (
+        Path(bundle_dir).expanduser()
+        if bundle_dir is not None
+        else default_example_bundle_dir()
+    )
     if not bundle.is_dir():
         tried = ", ".join(str(p) for p in _candidate_bundle_dirs())
         raise ExampleUnavailable(
@@ -121,6 +152,11 @@ def load_example_project(
             f"${EXAMPLE_BUNDLE_ENV} to the {EXAMPLE_SUBMISSION_ID} "
             "checkout, or create it there."
         )
+    from ._leaf import _submission_home
+
+    _check_example_target(
+        _submission_home(home) / "submissions" / EXAMPLE_SUBMISSION_ID
+    )
     submission = load_submission(bundle)
     verdict = Gate1Verdict(
         submission=submission,
@@ -149,7 +185,9 @@ def load_example_project(
     gate1_payload = json.loads(gate1_path.read_text(encoding="utf-8"))
     gate1_payload["example"] = True
     gate1_payload["note"] = "demo record — gate-1 checks not executed"
-    gate1_path.write_text(json.dumps(gate1_payload, indent=2, sort_keys=True), encoding="utf-8")
+    gate1_path.write_text(
+        json.dumps(gate1_payload, indent=2, sort_keys=True), encoding="utf-8"
+    )
     (target / "decision.json").write_text(
         json.dumps(
             {
