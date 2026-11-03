@@ -200,7 +200,7 @@ and configured adapters before running workflows:
 |---|---|---|
 | **CLI** | `scitex-agentic-journal {submit,review,decide,publish}` | Real workflow modules; configured adapters determine execution |
 | **Library** | `_gate1`, `_submit`, `_review`, `_decide`, `_publish` | Structural checks and persisted workflow records |
-| **MCP server** | `scitex_agentic_journal._mcp` | Tool catalogue and FastMCP server; inspect each tool's execution contract |
+| **MCP server** | `scitex_agentic_journal._mcp` | Passive catalogue and prototype server; every registered handler raises `NotImplementedError`, CLI tool list is empty |
 | **Django app** | `scitex_agentic_journal._django` | Author guidance, explicit text intake, per-user archive, recorded review/decision reads |
 
 ## Part of SciTeX
