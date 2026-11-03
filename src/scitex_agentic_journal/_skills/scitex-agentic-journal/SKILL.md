@@ -3,22 +3,21 @@ name: scitex-agentic-journal
 description: |
   [WHAT] `scitex-agentic-journal` is the publication-venue substrate of SciTeX: a journal where AI agents (Spartan/Qwen-class reviewer agents) — not volunteer reviewers — perform peer review, reproducibility re-run, claim verification, novelty triangulation, methodology critique, and editorial decision (accept / revise / reject). The package ingests a manuscript bundle (LaTeX + claims + Clew DAG + code repo + ORCID), runs gate-1 structural checks, gate-2 AI review, gate-3 editorial decision, gate-4 persistent ID, then hands off to scitex-live-paper.
   [WHEN] Use when the user asks to submit, review, accept, reject, revise, mint a DOI for, or publish a manuscript via the SciTeX agentic journal; or mentions ARA-native publishing, gate-1 / gate-2 checks, ORCID validation, Clew DAG submission gate, Live Paper hand-off, reviewer agents, or editorial decision engine.
-  [HOW] `pip install scitex-agentic-journal` (CLI + library) or `pip install scitex-agentic-journal[mcp]` (+ MCP server for agents). See the leaf skills for submission bundle shape, gate-1 implementation, review engine, decision rules, and publish hand-off.
+  [HOW] `pip install scitex-agentic-journal` (CLI + library) or `pip install scitex-agentic-journal[mcp]` (optional prototype server dependency; no executable MCP workflow handlers). See the leaf skills for submission bundle shape, gate-1 implementation, review engine, decision rules, and publish hand-off.
 tags: [scitex-agentic-journal]
 primary_interface: cli
 interfaces:
   python: 2
   cli: 1
-  mcp: 2
   django: 3
   skills: 2
 ---
 
 # scitex-agentic-journal Skill
 
-> **Status:** alpha. Use the installed CLI/API and source for implemented behavior; some leaves retain design targets. The mounted example loader constructs labeled demo records and does not execute scientific verification or editorial review.
+> **Status:** alpha. MCP workflow handlers are unimplemented; installing the MCP extra does not enable submission, review or publication tools. Use the installed CLI/API and source for implemented behavior; some leaves retain design targets. The mounted example loader constructs labeled demo records and does not execute scientific verification or editorial review.
 
-> **Interfaces:** CLI ⭐ · Python ⭐⭐ · MCP ⭐⭐ · Django ⭐⭐⭐ · Skills ⭐⭐
+> **Interfaces:** CLI ⭐ · Python ⭐⭐ · MCP prototype only · Django ⭐⭐⭐ · Skills ⭐⭐
 
 `scitex-agentic-journal` is the journal substrate of SciTeX. It is **not** a new claim model and **not** a new manuscript format; it consumes Clew's claim/DAG model and emits Live Paper bundles. AI agents do the editorial work that volunteer reviewers traditionally do.
 
@@ -26,7 +25,7 @@ interfaces:
 
 ```bash
 pip install scitex-agentic-journal           # CLI + library
-pip install scitex-agentic-journal[mcp]      # + MCP server for AI agents
+pip install scitex-agentic-journal[mcp]      # optional prototype dependency; handlers remain unimplemented
 python -c "import scitex_agentic_journal; print(scitex_agentic_journal.__version__)"
 ```
 
@@ -59,7 +58,7 @@ sub-package only exposes the standalone import path during alpha.
 ### Architecture (30–39)
 
 - [30_django-and-hub.md](30_django-and-hub.md) — leaf-owned author portal, authenticated archive storage, record reads and upload durability
-- [31_mcp-and-agents.md](31_mcp-and-agents.md) — `_mcp` server: submit / review / decide / publish tools for AI agents
+- [31_mcp-and-agents.md](31_mcp-and-agents.md) — passive MCP catalogue, placeholder handlers and working discovery
 
 ## When NOT to use this skill
 
@@ -77,4 +76,4 @@ scitex-agentic-journal   --emits-->   scitex-live-paper   (rendered artefact)
 scitex-agentic-journal   --hosts-on-> scitex-hub          (reviewer dashboard, auth)
 ```
 
-See [01_overview.md](01_overview.md) for the full pipeline diagram and milestone breakdown.
+See [10_overview.md](10_overview.md) for the full pipeline diagram and milestone breakdown.

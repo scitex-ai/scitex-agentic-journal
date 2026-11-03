@@ -135,6 +135,8 @@ from scitex_agentic_journal._mcp import (
 )
 ```
 
-The `fastmcp` server itself is a post-MVP target (see issue #6).
-The exports above are the introspection surface used by
-`scitex-agentic-journal mcp list-tools` today.
+These exports expose passive catalogue, scope and audit primitives.
+`tool_catalogue()` returns proposed tool metadata; the CLI
+`scitex-agentic-journal mcp list-tools --json` independently returns an empty
+list. The optional `build_fastmcp_server()` registers only handlers that raise
+`NotImplementedError`. See [31_mcp-and-agents.md](31_mcp-and-agents.md).
