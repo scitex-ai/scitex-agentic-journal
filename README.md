@@ -46,7 +46,7 @@ Traditional peer review is slow, opaque, volunteer-limited, and cannot keep pace
 
 The MVP collapses the long pipeline into the smallest loop that is end-to-end useful:
 
-1. **submit** — accept a manuscript bundle through CLI / MCP and persist it with provenance.
+1. **submit** — accept a manuscript bundle through CLI / Web intake and persist it with provenance.
 2. **agent review** — run a single reviewer agent against the bundle and persist its report.
 3. **decision** — apply rule-based editorial logic over the review record → `accept | revise | reject`.
 4. **publish** — emit a Live Paper bundle (accepted) or a revision packet (revise) and stamp a persistent ID.
@@ -159,7 +159,7 @@ Subsequent workflow modules (adapter configuration is required):
 
 ```bash
 pip install scitex-agentic-journal           # CLI + library
-pip install scitex-agentic-journal[mcp]      # + MCP server for agents
+pip install scitex-agentic-journal[mcp]      # + read-only MCP builder and discovery
 pip install scitex-agentic-journal[dev]      # + dev/test extras
 ```
 
@@ -200,7 +200,7 @@ and configured adapters before running workflows:
 |---|---|---|
 | **CLI** | `scitex-agentic-journal {submit,review,decide,publish}` | Real workflow modules; configured adapters determine execution |
 | **Library** | `_gate1`, `_submit`, `_review`, `_decide`, `_publish` | Structural checks and persisted workflow records |
-| **MCP server** | `scitex_agentic_journal._mcp` | Passive catalogue and prototype server; every registered handler raises `NotImplementedError`, CLI tool list is empty |
+| **MCP server** | `scitex_agentic_journal._mcp` | One read-only local `aj_get_submission` handler sharing the public Python/Web reader; fourteen planned tools remain unavailable and are omitted from discovery |
 | **Django app** | `scitex_agentic_journal._django` | Author guidance, explicit text intake, per-user archive, recorded review/decision reads |
 
 ## Part of SciTeX

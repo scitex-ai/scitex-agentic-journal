@@ -9,10 +9,12 @@ importing ``fastmcp``.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Final
+from typing import Any, Final
 
+from scitex_agentic_journal._archive import get_submission
 from scitex_agentic_journal._mcp._scopes import TokenScope
 
 
@@ -36,19 +38,26 @@ class ToolDef:
     kind: ToolKind
     summary: str
     required_scope: TokenScope
+    handler: Callable[..., dict[str, Any]] | None = None
+
+    @property
+    def available(self) -> bool:
+        """Only bound handlers are executable capabilities, not planned records."""
+        return self.handler is not None
 
 
 # ---------------------------------------------------------------------------
-# READ-ONLY surface — side-effect-free; any token (even unauthenticated
-# read sessions) can call these.
+# Planned read-only surface. Only definitions with a handler are registered;
+# this local prototype does not implement token authentication.
 # ---------------------------------------------------------------------------
 
 READ_ONLY_TOOLS: Final[tuple[ToolDef, ...]] = (
     ToolDef(
         name="aj_get_submission",
         kind=ToolKind.READ_ONLY,
-        summary="Read one submission record.",
+        summary="Read one existing local submission summary; no submission or validation is run.",
         required_scope=TokenScope.SUBMITTER,
+        handler=get_submission,
     ),
     ToolDef(
         name="aj_list_submissions",

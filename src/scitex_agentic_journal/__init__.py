@@ -20,6 +20,8 @@ except PackageNotFoundError:  # pragma: no cover - source-tree fallback
     __version__ = "0.0.0+local"
 
 
+from scitex_agentic_journal._archive import get_submission
+
 # M4 paper-level re-review badge — agentic-journal → live-paper contract.
 # Re-exported at the package top so a hub-side resolver writes
 # ``from scitex_agentic_journal import resolve_badge_for_paper`` instead
@@ -51,6 +53,7 @@ __all__ = [
     "ReReviewStatus",
     "__version__",
     "build_hub_resolver",
+    "get_submission",
     "derive_wrapper_manifest",
     "resolve_badge_for_paper",
     "verdict_to_status",
