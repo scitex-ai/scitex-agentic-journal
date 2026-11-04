@@ -79,7 +79,7 @@ dev = [
     # at the module level; pinning it into `[dev]` (PS-210) keeps a
     # fresh `pip install -e .[dev]` able to run the full suite without
     # the operator having to also add `[mcp]`.
-    "fastmcp>=2.0",
+    "fastmcp>=2.14.0",
 ]
 # `all` is the ecosystem-template fallback that pulls every optional
 # dependency (test + mcp + …). When new optional extras get added they
@@ -88,10 +88,10 @@ all = [
     "pytest>=8.0",
     "pytest-django>=4.0",
     "pytest-cov>=4.0",
-    "fastmcp>=2.0",
+    "fastmcp>=2.14.0",
 ]
 mcp = [
-    "fastmcp>=2.0",
+    "fastmcp>=2.14.0",
 ]
 
 [project.entry-points."scitex_dev.docs"]

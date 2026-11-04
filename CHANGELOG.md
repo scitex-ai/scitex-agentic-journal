@@ -4,6 +4,17 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Require FastMCP >=2.14.0 for the optional MCP runtime and its actual schema
+  discovery; Python/Web record reads remain independent of that optional runtime.
+- Read existing local submission summaries through public Django-free
+  `get_submission`, the shared Web detail read and `aj_get_submission` MCP.
+  Bind server storage to operator configuration; clients supply only an ID.
+- Discover implemented MCP schemas through the real in-memory server. Keep the
+  other fourteen planned tools explicitly unavailable and out of default discovery.
+
+
 ## [0.1.0a4] - 2026-11-01
 
 ### Added

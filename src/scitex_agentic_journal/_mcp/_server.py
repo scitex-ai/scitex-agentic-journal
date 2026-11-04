@@ -9,6 +9,7 @@ test environment.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from scitex_agentic_journal._mcp._tools import tool_catalogue
@@ -23,13 +24,15 @@ class FastmcpMissingError(RuntimeError):
     """
 
 
-def build_fastmcp_server(*, server_name: str = "scitex-agentic-journal") -> Any:
+def build_fastmcp_server(
+    *, server_name: str = "scitex-agentic-journal", home: Path | None = None
+) -> Any:
     """Build a configured :class:`fastmcp.FastMCP` server.
 
-    Registers placeholders for every tool in :func:`tool_catalogue`
-    so the surface is discoverable immediately. Real handlers will
-    plug in once the corresponding gate engines (gate-1 / gate-2 /
-    gate-3 / gate-4) ship.
+    Bind read handlers to one operator-owned local archive. Clients cannot
+    select a filesystem root. The remaining catalogue entries are explicitly
+    unavailable catalogue records and are not registered. This builder does not provide multi-user token
+    authorization or a configured network transport.
 
     Raises
     ------
@@ -46,23 +49,25 @@ def build_fastmcp_server(*, server_name: str = "scitex-agentic-journal") -> Any:
             "MCP server."
         ) from exc
 
+    from scitex_agentic_journal._django._leaf import _submission_home
+
+    root = _submission_home(home).expanduser().resolve()
     server = FastMCP(server_name)
     for tool in tool_catalogue():
-        _register_placeholder(server, tool.name, tool.summary)
+        if tool.available:
+            _register_read(server, tool, root)
     return server
 
 
-def _register_placeholder(server: Any, name: str, summary: str) -> None:
-    """Attach a tool that signals "wired but not yet implemented".
-
-    Importantly the handler **raises** rather than returns a stub
-    payload. Reviewer agents need to know the tool isn't really
-    answering, not get fed a plausible-looking lie.
-    """
-
-    @server.tool(name=name, description=summary)
-    def _handler() -> dict[str, str]:
-        raise NotImplementedError(
-            f"MCP tool {name!r} is wired but not yet implemented. "
-            "Track aj-mcp implementation tasks before enabling in production."
-        )
+def _register_read(server: Any, tool: Any, home: Path) -> None:
+    @server.tool(
+        name=tool.name,
+        description=tool.summary,
+        annotations={
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "openWorldHint": False,
+        },
+    )
+    def _handler(submission_id: str) -> dict[str, Any]:
+        return tool.handler(submission_id, home=home)

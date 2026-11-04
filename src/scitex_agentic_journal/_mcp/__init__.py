@@ -1,8 +1,7 @@
 """MCP server surface for the agentic journal.
 
-Exposes the journal end-to-end as MCP tools so reviewer agents,
-submitter agents, and editor agents can drive it without going
-through the human CLI.
+Exposes one read-only local submission summary operation. Other catalogue
+entries are unavailable plans, not registered workflow handlers.
 
 The package is split so the **core types** (tool catalogue, scopes,
 audit log) import without the optional ``fastmcp`` dependency. Only

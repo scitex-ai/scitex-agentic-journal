@@ -333,16 +333,20 @@ def mcp() -> None:
 def mcp_list_tools(ctx: click.Context, as_json_local: bool) -> None:
     """List the MCP tools this package exposes.
 
-    Today the list is empty: the MCP server lands post-MVP. The
-    command itself is mandatory (audit §1a) so agents can probe for
-    capabilities without a try/except on the subcommand name.
+    Query the real in-memory FastMCP schema for implemented handlers only.
+    Requires the optional [mcp] extra; no journal handler is executed.
 
     Example:
 
       $ scitex-agentic-journal mcp list-tools
       $ scitex-agentic-journal mcp list-tools --json
     """
-    tools: list[str] = []
+    from scitex_agentic_journal._mcp._discovery import list_implemented_tools
+
+    try:
+        tools = list_implemented_tools()
+    except ImportError as exc:
+        raise click.ClickException("Install scitex-agentic-journal[mcp] for MCP discovery.") from exc
     root_obj = ctx.find_root().obj or {}
     if as_json_local or root_obj.get("as_json"):
         click.echo(json.dumps({"tools": tools}, indent=2))
@@ -350,8 +354,8 @@ def mcp_list_tools(ctx: click.Context, as_json_local: bool) -> None:
     if not tools:
         click.echo("(no MCP tools registered — see post-MVP roadmap)")
         return
-    for tool in tools:  # pragma: no cover - reached when tools exist
-        click.echo(tool)
+    for tool in tools:
+        click.echo(tool["name"])
 
 
 # ---------------------------------------------------------------------------

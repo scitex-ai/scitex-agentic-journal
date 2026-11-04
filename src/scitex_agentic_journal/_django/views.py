@@ -115,12 +115,13 @@ def submissions_index(request):
 
 @journal_request
 def submission_detail(request, submission_id):
-    summary = _leaf.get_submission_summary(submission_id, request_home(request))
-    return (
-        JsonResponse({**summary, "found": True, "placeholder": False})
-        if summary
-        else JsonResponse({"submission_id": submission_id, "found": False}, status=404)
-    )
+    from scitex_agentic_journal import get_submission
+
+    try:
+        payload = get_submission(submission_id, home=request_home(request))
+    except ValueError:
+        payload = {"submission_id": submission_id, "found": False}
+    return JsonResponse(payload, status=200 if payload["found"] else 404)
 
 
 def _record_response(request, submission_id, kind):
