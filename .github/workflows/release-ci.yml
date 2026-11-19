@@ -42,9 +42,7 @@ jobs:
         run: uv venv --python ${{ matrix.python-version }} .venv
       - name: Install dependencies
         run: |
-          uv pip install --python .venv/bin/python -e ".[all,dev]" \
-            || uv pip install --python .venv/bin/python -e ".[dev]" \
-            || uv pip install --python .venv/bin/python -e .
+          uv pip install --python .venv/bin/python -e ".[dev]"
       - name: Run tests
         run: |
           export PATH="$PWD/.venv/bin:$PATH"
