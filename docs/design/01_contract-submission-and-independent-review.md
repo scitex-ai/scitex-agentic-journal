@@ -4,7 +4,8 @@ Status: **proposal, awaiting an operator decision on §2** (2026-11-19).
 Scope: the smallest implementable design for
 submission → review assignment → review → decision, in which reviewers
 are independent of the authors' agents and every verdict points at a
-registered claim.
+registered claim. Findings are tracked as issues on the authors' git host
+(§12).
 
 ## 1. Where the repo stands (audit of `develop` @ 3824d01, v0.1.0a4)
 
@@ -110,6 +111,8 @@ submission/
   "title": "…",
   "authors": [{"name": "…", "orcid": "0000-…", "corresponding": true}],
   "produced_by": [{"kind": "agent", "id": "paper-scitex-clew", "model": "…"}],
+  "repository": {"host": "github", "url": "https://github.com/…/…", "commit": "<sha>"},
+  "supersedes": null,
   "contracts": {
     "review_packet":   "scitex-live-paper.review-packet@1",
     "evidence_report": "scitex-live-paper.evidence-report@1"
@@ -174,6 +177,12 @@ submitted ──validate──▶ validated ──assign K──▶ assigned
                                          decided ◀──editor── editor-summary
                     (accept | minor-revision | major-revision | reject)
 ```
+
+Review is iterative: after `collect`, the journal files each finding as an
+issue in the submission's repository (§12); the author answers with linked
+commits/PRs and resubmits; round N+1 re-runs the *same* reviewer slots, which
+close or re-open their own issues. `decided` is reached when the editor rules
+on a round's summary.
 
 Every transition writes one immutable JSON record into
 `$SCITEX_AGENTIC_JOURNAL_HOME/submissions/<id>/` (existing layout; no
@@ -275,7 +284,10 @@ Rules checked at collection:
 - recommendation tally; failed/excluded runs with reasons;
 - independence block: reviewer ids, kinds, `distinct_models`, correlated
   pairs;
-- hashes of every input and report.
+- hashes of every input and report;
+- issue ledger per round (§12): opened / closed-resolved / re-opened / still
+  open, by severity and by claim, with every unresolved `critical` or `major`
+  issue listed by link.
 
 The summary recommends, it does not decide. `panel decide` records the editor
 (human ORCID or agent id + model), the decision and a reason referencing
@@ -305,9 +317,12 @@ Same schemas for both; only `reviewer.kind` and identity fields differ.
    (spec-repo lock, input manifest check) rather than importing it.
 4. `_report` + `_editor`: report validation against the packet, summary.
 5. `decide` refuses stub-adapter records (defect 1).
-6. Tests: real bundle fixtures produced by live-paper; real `sac` runs behind
+6. `_tracker`: the issue-tracker contract (§12) with the `local` tracker
+   (journal-owned records, no network) and the GitHub adapter; GitHub tests
+   run against a throwaway repo behind `SCITEX_RUN_NETWORK_TESTS=1`.
+7. Tests: real bundle fixtures produced by live-paper; real `sac` runs behind
    the opt-in marker `SCITEX_RUN_SAC_TESTS=1`.
-7. Release 0.2.0.
+8. Release 0.2.0.
 
 ## 11. Open decisions
 
@@ -319,3 +334,153 @@ Same schemas for both; only `reviewer.kind` and identity fields differ.
 | D4 | Default panel: K and model mix | K = 3 with at least two distinct model families when keys exist; the summary always states `distinct_models` |
 | D5 | Who decides: human editor only, or agent editor allowed | Both allowed, recorded; rule-based v2 only as a suggestion |
 | D6 | Reviewer egress beyond the model endpoint (literature search for novelty) | Off in v1; novelty is out of scope of claim-level review |
+| D7 | Reviewer disclosure on public issues (§12.5) | `model-family` for agents, `blind` for humans; `open` per submission opt-in |
+| D8 | Default issue venue (§12.6) | Author repo when the journal's app is installed there; otherwise a private journal-owned review repo |
+| D9 | GitHub credential type | GitHub App (per-repo install, scoped `issues:write` + `metadata:read`) over a personal token |
+
+## 12. Review findings as hosted issues
+
+Every finding becomes a ticket in the git host the authors already use, so
+review, response and re-check happen where the code and manuscript live, and
+the thread *is* the review record.
+
+### 12.1 Roles and credentials
+
+- **Reviewers never touch the host.** A sealed reviewer only writes
+  `review-report.json` (§7) plus, from round 2, `recheck.json` (§12.4). The git
+  host is not on its egress allowlist and it holds no host credential.
+- **The journal files issues** with its own service credential (GitHub App
+  installation token preferred, D9), read from the journal's secret store at
+  call time, never logged, never passed to SAC specs or subprocesses.
+- **Authors respond** with ordinary commits/PRs that reference the issue.
+
+### 12.2 Mapping finding → issue
+
+| Finding | Issue title | Anchor (part of the key) |
+|---|---|---|
+| per claim | `[C3] <reviewer verdict>: <first line of comment>` | `claim:C3` |
+| per graph node | `[C3 › node n17] …` | `claim:C3/node:n17` |
+| general (untagged text) | `[general] <location>` | `general:<normalised location>` |
+
+Stable labels (created idempotently; values longer than the host limit are
+truncated with a short hash suffix):
+
+```
+aj:review              aj:submission/<short lineage id>
+aj:claim/C3            aj:state/not_supported      # packet evidence state; absent for general
+aj:severity/major      aj:reviewer/r2              # pseudonymous slot (§12.5)
+aj:model/<family>      aj:round/1  aj:round/2 …    # one label per round the issue was touched
+```
+
+The body carries the finding text, links to the claim's graph page and the
+cited nodes, the evidence state, and a machine marker
+`<!-- aj:finding-key=<key> -->`.
+
+### 12.3 Idempotency
+
+`finding-key = sha256(lineage_id, reviewer_slot, anchor)` — no round, no
+wording. The lineage id is the first submission's id, carried by `supersedes`.
+
+- The journal keeps `tracker.json` per lineage: `finding-key → issue ref`,
+  written after each successful call (so a crash mid-batch resumes cleanly).
+- Before creating, the adapter looks up the key in `tracker.json`, then falls
+  back to searching the marker among `aj:submission/<id>` issues (recovers a
+  lost ledger).
+- Re-running a round therefore updates/comments on existing issues; it never
+  duplicates them. Two findings from one reviewer with the same anchor are
+  merged into one issue (one comment each).
+
+### 12.4 Rounds
+
+1. Round 1: `collect` validates reports → journal files issues (`aj:round/1`).
+2. Author pushes fixes referencing issues (`Fixes #12`, or a PR linking them),
+   replies in the thread, and resubmits; the new manifest's
+   `repository.commit` must contain the linked commits.
+3. Round 2 re-runs **the same reviewer slots**: same reviewer id, model, spec
+   and prompt hash, new sealed container (fresh state; continuity is by
+   identity and record, not by memory). Its input tree adds a read-only
+   export of *its own* issues only: finding, author replies, linked commit
+   diffs. It never sees other reviewers' issues.
+4. The reviewer emits `recheck.json`:
+   `{finding_key, outcome: resolved | not-resolved | withdrawn, comment}` per
+   own open issue, plus new findings in a normal report.
+5. The journal applies it: `resolved`/`withdrawn` → comment + close;
+   `not-resolved` → comment + keep/re-open; adds `aj:round/2`. Issues closed by
+   the *author* are re-opened if the reviewer says `not-resolved` — only the
+   reviewer's re-check (or the editor) resolves a finding.
+6. A reviewer slot that cannot be re-run (model retired) is recorded as
+   `discontinued`; its open issues are flagged for the editor, not
+   auto-closed.
+
+### 12.5 Anonymity
+
+Issues are filed by the journal's bot account, so the host never shows who
+reviewed. Labels and bodies carry a per-submission pseudonym (`r1…rK`). The
+mapping slot → identity/model lives in the journal's records, disclosed per
+policy (D7):
+
+- `blind`: pseudonym only (default for humans; ORCID stays private);
+- `model-family`: pseudonym + model family label (default for agents — readers
+  need it to judge correlated reviewers);
+- `open`: full identity, opt-in per submission.
+
+The editor summary is always complete; publication of the mapping after a
+decision follows the same policy.
+
+### 12.6 Venue and private repositories
+
+- `author-repo` (default when the journal's App is installed on that repo):
+  issues go to `repository.url`. The App install is the authors' explicit
+  consent and works for private repos.
+- `journal-repo` (fallback): a private journal-owned repo per lineage
+  (`review-<lineage>`), authors invited as collaborators. Used when the author
+  repo is not reachable, not on a supported host, or when the authors want
+  review confidential until decision; it can be made public or transferred
+  after the decision.
+- `local`: no host; the same issue model lives in the journal's records and
+  the portal. Always available; also used by tests.
+
+Nothing from a private repository or a confidential review is ever written to
+a public venue; the adapter checks repository visibility before filing and
+refuses a mismatch with the venue policy.
+
+### 12.7 Rate limits and failure
+
+Filing is a journal-side queue, never done by reviewers: serialized per host,
+honours `Retry-After` / `X-RateLimit-Reset` and the host's secondary limits on
+content creation, with a per-round cap (default 50 issues per reviewer; the
+overflow goes into one `[overflow] additional findings` issue). Any failure
+leaves the queue resumable via `tracker.json`; a round's summary is not
+produced until every finding is filed or explicitly recorded as `unfiled`
+with the error.
+
+### 12.8 Record
+
+The hosted thread is the working surface; the authoritative record is the
+journal's **mirror**: at each round close the journal snapshots every issue
+(body, labels, comments, state, linked commits) with hashes into
+`round-<n>/issues.json`. Later edits or deletions on the host are visible as
+diffs against the mirror.
+
+### 12.9 Adapter contract (hosting-neutral, no hard dependency)
+
+```python
+class IssueTracker(Protocol):
+    host: str                                   # "github" | "gitlab" | "gitea" | "forgejo" | "local"
+    def check_access(self, repo: RepoRef) -> AccessReport: ...   # reachable, visibility, can_write
+    def ensure_labels(self, repo: RepoRef, labels: Sequence[Label]) -> None: ...
+    def find_by_key(self, repo: RepoRef, key: str) -> IssueRef | None: ...
+    def create(self, repo: RepoRef, issue: IssueDraft) -> IssueRef: ...
+    def comment(self, ref: IssueRef, body: str) -> None: ...
+    def set_state(self, ref: IssueRef, state: Literal["open", "closed"], reason: str) -> None: ...
+    def add_labels(self, ref: IssueRef, labels: Sequence[Label]) -> None: ...
+    def linked_changes(self, ref: IssueRef) -> list[ChangeRef]: ...      # PRs/commits referencing the issue
+    def snapshot(self, ref: IssueRef) -> IssueSnapshot: ...
+```
+
+GitHub first, over its REST API with `requests` (already a dependency); no
+host SDK is required. GitLab, Gitea and Forgejo adapters follow the same
+contract (Gitea and Forgejo share an API). Adapters are selected by
+`repository.host` and registered by name, like the existing reviewer-adapter
+registry. A journal without any host adapter configured still works via
+`local`.
