@@ -23,7 +23,7 @@ Traditional peer review is slow, opaque, volunteer-limited, and cannot keep pace
 
 The MVP collapses the long pipeline into the smallest end-to-end useful loop:
 
-1. **submit** — accept a manuscript bundle through CLI / MCP, persist with provenance.
+1. **submit** — accept a manuscript bundle through the configured CLI/API, persist with provenance. MCP execution is unimplemented.
 2. **agent review** — run a single reviewer agent against the bundle, persist its report.
 3. **decision** — apply rule-based editorial logic over the review record → `accept | revise | reject`.
 4. **publish** — emit a Live Paper bundle (accepted) or a revision packet (revise), stamp a persistent ID.
@@ -64,8 +64,9 @@ not prove a configured provider has executed or a DOI has been registered.
 The `_django` author portal offers guidance, explicit text-bundle intake and
 actual record reads in an authenticated user archive. It has no web review,
 revision or publishing action. See [30_django-and-hub.md](30_django-and-hub.md).
-The `_mcp` catalogue/server is implemented; inspect individual tool handlers
-rather than treating every catalogue entry as a completed workflow.
+The `_mcp` module contains a passive catalogue and prototype server builder.
+Every registered server handler raises `NotImplementedError`; the CLI tool
+list is empty. See [31_mcp-and-agents.md](31_mcp-and-agents.md).
 
 ## Dependency direction
 

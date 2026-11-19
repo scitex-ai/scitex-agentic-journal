@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scitex.ai/schemas/scitex-agentic-journal/submission/1.0",
+  "title": "scitex-agentic-journal submission manifest",
+  "description": "submission.json at the root of a submission bundle (docs/design/01_contract-submission-and-independent-review.md §3). Lists every file of the bundle with its SHA-256; the journal refuses unlisted files.",
+  "type": "object",
+  "required": ["schema", "schema_version", "title", "authors", "submitter_orcid", "repository", "licence", "data", "produced_by", "main_claims", "contracts", "files"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {"const": "scitex-agentic-journal.submission"},
+    "schema_version": {"type": "string", "pattern": "^1\\.[0-9]+$"},
+    "title": {"type": "string", "minLength": 1},
+    "authors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "orcid": {"$ref": "#/$defs/orcid"},
+          "corresponding": {"type": "boolean"}
+        }
+      }
+    },
+    "submitter_orcid": {"$ref": "#/$defs/orcid"},
+    "repository": {
+      "type": "object",
+      "required": ["url", "commit"],
+      "additionalProperties": false,
+      "properties": {
+        "host": {"type": "string"},
+        "url": {"type": "string", "minLength": 1},
+        "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "tag": {"type": ["string", "null"]},
+        "project_version": {"type": ["string", "null"]}
+      }
+    },
+    "licence": {
+      "type": "object",
+      "required": ["manuscript", "code"],
+      "additionalProperties": false,
+      "properties": {
+        "manuscript": {"type": "string", "minLength": 1, "description": "SPDX identifier"},
+        "code": {"type": "string", "minLength": 1, "description": "SPDX identifier"}
+      }
+    },
+    "data": {
+      "type": "array",
+      "description": "Datasets used. v1 accepts public data only (§13.1b).",
+      "items": {
+        "type": "object",
+        "required": ["name", "url", "licence", "access"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "url": {"type": "string", "minLength": 1},
+          "licence": {"type": "string", "minLength": 1},
+          "access": {"type": "string"},
+          "sha256": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "produced_by": {
+      "type": "array",
+      "description": "Humans and agents that produced the work; none of them may review it.",
+      "items": {
+        "type": "object",
+        "required": ["kind", "id"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": {"enum": ["human", "agent"]},
+          "id": {"type": "string", "minLength": 1},
+          "model": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "conversion": {
+      "type": ["object", "null"],
+      "description": "Present when an agent converted an existing project into SciTeX form (§13.1b).",
+      "required": ["agent", "source_commit", "result_commit", "diff_sha256", "author_confirmed"],
+      "additionalProperties": false,
+      "properties": {
+        "agent": {"type": "string", "minLength": 1},
+        "model": {"type": ["string", "null"]},
+        "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "result_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "diff_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "author_confirmed": {"type": "boolean"}
+      }
+    },
+    "main_claims": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "claim_ids of the main results; admission gate (iii) and reproduction target these.",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "contracts": {
+      "type": "object",
+      "required": ["evidence_report", "review_packet"],
+      "additionalProperties": false,
+      "properties": {
+        "evidence_report": {"const": "scitex-live-paper.evidence-report@1"},
+        "review_packet": {"const": "scitex-live-paper.review-packet@1"}
+      }
+    },
+    "files": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[^/][^\\\\]*$"},
+      "additionalProperties": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+    },
+    "supersedes": {"type": ["string", "null"]}
+  },
+  "$defs": {
+    "orcid": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$"}
+  }
+}

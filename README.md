@@ -200,7 +200,7 @@ and configured adapters before running workflows:
 |---|---|---|
 | **CLI** | `scitex-agentic-journal {submit,review,decide,publish}` | Real workflow modules; configured adapters determine execution |
 | **Library** | `_gate1`, `_submit`, `_review`, `_decide`, `_publish` | Structural checks and persisted workflow records |
-| **MCP server** | `scitex_agentic_journal._mcp` | Tool catalogue and FastMCP server; inspect each tool's execution contract |
+| **MCP server** | `scitex_agentic_journal._mcp` | Passive catalogue and prototype server; every registered handler raises `NotImplementedError`, CLI tool list is empty |
 | **Django app** | `scitex_agentic_journal._django` | Author guidance, explicit text intake, per-user archive, recorded review/decision reads |
 
 ## Part of SciTeX
@@ -235,7 +235,12 @@ Downstream consumer:
 
 ## Status
 
-Pre-alpha — design + scaffold only. Implementation tracked under issues.
+0.2.0 adds the contract-based path for the stages before review:
+`bundle validate|submit`, `admission evaluate|show`, `preprint create|show` and
+review ingestion from any source (`reviews ingest|list`). See
+[the design](docs/design/01_contract-submission-and-independent-review.md)
+and the CHANGELOG. The legacy `submit/review/decide` intake remains; `decide`
+refuses placeholder reviews.
 
 ## License
 

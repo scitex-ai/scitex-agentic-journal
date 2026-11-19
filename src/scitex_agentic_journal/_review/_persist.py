@@ -86,6 +86,7 @@ def _record_to_jsonable(record: ReviewRecord) -> dict:
         "submission_id": record.submission_id,
         "adapter": record.adapter,
         "adapter_version": record.adapter_version,
+        "adapter_mode": record.adapter_mode,
         "prompts_version": record.prompts_version,
         "rubric_version": record.rubric_version,
         "reproducibility": _conv(record.reproducibility),

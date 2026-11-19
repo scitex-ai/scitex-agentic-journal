@@ -52,6 +52,10 @@ def _review_content_hash(record: ReviewRecord) -> str:
     return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+class NoRealReviewError(RuntimeError):
+    """The review on record is a placeholder (stub/unknown adapter mode)."""
+
+
 class DecisionEngine:
     """Apply the YAML rules-set to a :class:`ReviewRecord`.
 
@@ -96,6 +100,13 @@ class DecisionEngine:
             Frozen record carrying the verdict, rules-set version,
             every rule hit, and the upstream review content_hash.
         """
+        if record.adapter_mode != "live":
+            raise NoRealReviewError(
+                f"review of {record.submission_id} came from adapter "
+                f"{record.adapter!r} in mode {record.adapter_mode!r}; a decision "
+                "needs a real review on record (mode 'live'). Placeholder reviews "
+                "(e.g. local-deterministic) exercise the pipeline only."
+            )
         hits: list[RuleHit] = []
         first_reject: RuleHit | None = None
         first_revise: RuleHit | None = None

@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scitex.ai/schemas/scitex-agentic-journal/review-report/1.0",
+  "title": "scitex-agentic-journal review report (as filed by any source)",
+  "description": "A review of one submission, from any source: an external AI review service, a human researcher, or another user (design §7, §7a). Findings point at registered claims (claim_findings) or at untagged text (general_findings, which carry no claim verdict). The journal adds packet_state and the verified source; a reviewer never supplies them.",
+  "type": "object",
+  "required": ["schema", "schema_version", "submission_id", "claim_findings", "general_findings", "recommendation", "summary"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {"const": "scitex-agentic-journal.review-report"},
+    "schema_version": {"type": "string", "pattern": "^1\\.[0-9]+$"},
+    "submission_id": {"type": "string", "minLength": 1},
+    "round": {"type": "integer", "minimum": 1},
+    "claim_findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["claim_id", "verdict", "severity", "comment"],
+        "additionalProperties": false,
+        "properties": {
+          "claim_id": {"type": "string", "minLength": 1},
+          "verdict": {"enum": ["supported", "not-supported", "unclear", "not-assessed"]},
+          "graph_nodes": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "severity": {"$ref": "#/$defs/severity"},
+          "dimension": {"$ref": "#/$defs/dimension"},
+          "comment": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "general_findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["location", "severity", "comment"],
+        "additionalProperties": false,
+        "properties": {
+          "location": {"type": "string", "minLength": 1},
+          "severity": {"$ref": "#/$defs/severity"},
+          "dimension": {"$ref": "#/$defs/dimension"},
+          "comment": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "recommendation": {"enum": ["accept", "minor-revision", "major-revision", "reject"]},
+    "confidence": {"enum": ["low", "medium", "high"]},
+    "summary": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "severity": {"enum": ["none", "minor", "major", "critical"]},
+    "dimension": {"enum": ["scientific-validity", "logical-structure", "clarity"]}
+  }
+}

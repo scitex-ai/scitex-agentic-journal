@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scitex-agentic-journal"
-version = "0.1.0a4"
+version = "0.2.0"
 description = "ARA-native AI-reviewed open publishing on top of Clew. Part of SciTeX."
 readme = "README.md"
 license = "AGPL-3.0-only"
@@ -59,6 +59,9 @@ dependencies = [
     "requests>=2.31",
     # YAML for prompt _meta and prompts versioning.
     "pyyaml>=6.0",
+    # Validates submission bundles against the vendored, version-pinned
+    # scitex-live-paper contracts and the journal's own schemas (draft 2020-12).
+    "jsonschema>=4.18",
 ]
 
 [project.optional-dependencies]
@@ -123,6 +126,8 @@ include = ["scitex_agentic_journal*"]
     "_django/static/**/*",
     "_review/prompts/**/*",
     "_decide/rules/**/*",
+    "_contracts/schemas/*.json",
+    "_contracts/vendor/**/*.json",
     "_skills/**/*",
 ]
 

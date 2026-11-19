@@ -1,7 +1,7 @@
 ---
 description: |
   [TOPIC] CLI reference
-  [DETAILS] Every top-level subcommand the `scitex-agentic-journal` console script exposes — submit / review / decide / publish + skills + mcp + info + shell-completion.
+  [DETAILS] Every top-level subcommand the `scitex-agentic-journal` console script exposes — submit / review / decide / publish + skills + mcp + list-python-apis + shell-completion.
 tags: [scitex-agentic-journal-cli-reference]
 ---
 
@@ -58,18 +58,19 @@ identically from a checkout (`pip install -e .`) and from a wheel.
 ## `mcp` group
 
 ```bash
-scitex-agentic-journal mcp list-tools            # introspect MCP tool catalogue
+scitex-agentic-journal mcp list-tools            # report the currently empty implemented-tool list
 scitex-agentic-journal mcp list-tools --json
 ```
 
-The MCP server itself is a post-MVP target (#6). `list-tools` today
-returns the registered names — empty for the alpha — without
-requiring `fastmcp` to be installed.
+The CLI returns `{"tools": []}` without requiring FastMCP. The separate
+Python catalogue contains proposed operations, and the prototype server
+registers only `NotImplementedError` handlers. There is no MCP launch CLI.
+See [31_mcp-and-agents.md](31_mcp-and-agents.md).
 
-## `info` group
+## Python API discovery
 
 ```bash
-scitex-agentic-journal info list-python-apis    # enumerates the public Python API
+scitex-agentic-journal list-python-apis    # enumerates the public Python API
 ```
 
 ## Shell completion

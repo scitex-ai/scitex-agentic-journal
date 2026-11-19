@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from scitex_agentic_journal._decide._engine import (
     DecisionEngine,
+    NoRealReviewError,
     RuleEvaluatorMissing,
 )
 from scitex_agentic_journal._decide._load_review import (
@@ -47,6 +48,7 @@ __all__ = [
     "DecisionLoadError",
     "DecisionRecord",
     "DecisionVerdict",
+    "NoRealReviewError",
     "PersistedDecision",
     "RULES_VERSION",
     "RuleEvaluatorMissing",
