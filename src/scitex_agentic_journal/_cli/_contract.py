@@ -36,7 +36,10 @@ def _fail(exc: Exception) -> click.ClickException:
 
 
 def _build_executor(
-    kind: str, sandbox_image: Path | None, clew_requirement: str | None
+    kind: str,
+    sandbox_image: Path | None,
+    clew_requirement: str | None,
+    sandbox_image_sha256: str | None = None,
 ) -> Any:
     """The admission executor named on the command line (``none`` -> ``None``)."""
     if kind == "none":
@@ -58,10 +61,10 @@ def _build_executor(
             "(or SCITEX_AGENTIC_JOURNAL_CLEW_REQUIREMENT)"
         )
     try:
-        sandbox = ApptainerSandbox(sandbox_image)
+        sandbox = ApptainerSandbox(sandbox_image, expected_sha256=sandbox_image_sha256)
+        return ClewRerunExecutor(sandbox, clew_requirement=clew_requirement)
     except SandboxError as e:
         raise _fail(e) from e
-    return ClewRerunExecutor(sandbox, clew_requirement=clew_requirement)
 
 
 _json_opt = click.option(
@@ -178,6 +181,11 @@ def register_contract_commands(main_group: click.Group) -> None:
         help="Apptainer image (.sif, with python3) for --executor apptainer.",
     )
     @click.option(
+        "--sandbox-image-sha256",
+        envvar="SCITEX_AGENTIC_JOURNAL_SANDBOX_IMAGE_SHA256",
+        help="Pin the sandbox image: refuse to run when its sha256 differs.",
+    )
+    @click.option(
         "--clew-requirement",
         envvar="SCITEX_AGENTIC_JOURNAL_CLEW_REQUIREMENT",
         help="Pinned scitex-clew requirement installed in the sandbox, e.g. "
@@ -189,6 +197,7 @@ def register_contract_commands(main_group: click.Group) -> None:
         allow_local_repositories: bool,
         executor: str,
         sandbox_image: Path | None,
+        sandbox_image_sha256: str | None,
         clew_requirement: str | None,
         as_json: bool,
     ) -> None:
@@ -205,7 +214,9 @@ def register_contract_commands(main_group: click.Group) -> None:
         from scitex_agentic_journal._admission import run_admission
         from scitex_agentic_journal._records import RecordError
 
-        runner = _build_executor(executor, sandbox_image, clew_requirement)
+        runner = _build_executor(
+            executor, sandbox_image, clew_requirement, sandbox_image_sha256
+        )
         try:
             rec = run_admission(
                 submission_id,

@@ -403,7 +403,12 @@ class Executor(Protocol):
 
     name: str
 
-    def run(self, project: Path, manifest: dict[str, Any]) -> list[dict[str, Any]]: ...
+    def run(
+        self,
+        project: Path,
+        manifest: dict[str, Any],
+        report: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]: ...
 
 
 class NoExecutor:
@@ -411,7 +416,12 @@ class NoExecutor:
 
     name = "none"
 
-    def run(self, project: Path, manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    def run(
+        self,
+        project: Path,
+        manifest: dict[str, Any],
+        report: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         reason = (
             "no isolated executor is configured; author code never runs on the journal "
             "host outside an isolated executor (clew rerun is not isolated)"

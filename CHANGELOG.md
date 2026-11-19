@@ -21,6 +21,26 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
   checks remain non-blocking for admission (§13.1). SAC 0.40.x cannot be
   used for this yet: its sealed runs require a TUI agent harness and a model
   key.
+  - The journal, on the host, is the authority: recorded outputs are deleted
+    from the staged copy (and `.git` is not staged), clew replays into a kept
+    `--work-dir`, and the host hashes every recorded output there itself
+    (lstat, never following symlinks; escaping or symlinked paths are misses).
+    Claims are `reproduced` only when all producing runs match by host hash,
+    or, for numeric JSON-pointer claims, when the host-read value agrees
+    within the bundle's precision. clew's own report is kept only as
+    `sandbox_reported`. Main claims must also agree with the submitted
+    evidence report.
+  - Requirements are parsed with `packaging` and written back canonically
+    (control characters, options, URLs and paths refused); pip runs with
+    `--only-binary=:all: --no-build-isolation`. clew runs from its own
+    read-only venv with `python -I`.
+  - Limits: stdout/stderr capped (1 MiB), a polled disk cap on the run's
+    `work/`, and `--memory/--cpus/--pids-limit` where cgroup v2 is delegated;
+    the outcome record states which were enforced. Locked directories are
+    unlocked before removal, and executor failures become
+    `executability: failed` instead of breaking admission.
+  - `--sandbox-image-sha256` pins the image (the record says whether it was
+    pinned). Symlinked evidence bundles are refused.
 
 ### Security
 

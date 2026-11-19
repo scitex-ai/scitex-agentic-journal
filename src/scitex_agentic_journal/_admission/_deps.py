@@ -3,8 +3,10 @@
 The sandbox fetches dependencies from the package index BEFORE any author file
 is in the run, so a requirement must never be able to steer that fetch:
 options (``--index-url``, ``-e``, ``-r``, ``--hash``), URLs, VCS and local paths
-are refused, never passed on. Only ``name[extras] <specifiers> ; <marker>``
-lines are kept. Sources, in order: every ``requirements*.txt`` at the project
+are refused, never passed on. Every requirement is parsed with
+``packaging.requirements.Requirement`` and written back canonically; control
+characters (a newline would smuggle an option line) and direct references are
+refused. Sources, in order: every ``requirements*.txt`` at the project
 root, then ``[project].dependencies`` of ``pyproject.toml``. The project itself
 is not installed (its build backend would be author code run with egress).
 """
@@ -17,18 +19,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from packaging.requirements import InvalidRequirement, Requirement
+
 if sys.version_info >= (3, 11):  # noqa: UP036 - the package supports 3.10
     import tomllib
 else:  # pragma: no cover - exercised on Python 3.10 only
     import tomli as tomllib
 
-_NAME = r"[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?"
-_EXTRAS = r"(?:\s*\[\s*" + _NAME + r"(?:\s*,\s*" + _NAME + r")*\s*\])?"
-_VERSION = r"[A-Za-z0-9.*+!_-]+"
-_SPEC = r"(?:===|==|!=|~=|<=|>=|<|>)\s*" + _VERSION
-_SPECS = r"(?:\s*\(?\s*" + _SPEC + r"(?:\s*,\s*" + _SPEC + r")*\s*\)?)?"
-_MARKER = r"(?:\s*;\s*[A-Za-z0-9_.'\"<>=!~(),\s-]+)?"
-REQUIREMENT_RE = re.compile(r"^" + _NAME + _EXTRAS + _SPECS + _MARKER + r"$")
+#: Any C0 control character or DEL: a newline would split one declared
+#: dependency into a requirement AND a pip option line.
+_CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 
 
 @dataclass
@@ -45,11 +45,32 @@ class DeclaredDependencies:
         }
 
 
+def canonical_requirement(line: str) -> str | None:
+    """``str(Requirement(line))`` for a plain name/specifier/marker requirement, else None.
+
+    Refused: control characters (including newlines), anything
+    :class:`packaging.requirements.Requirement` cannot parse (options such as
+    ``--no-binary``, ``-e``, ``-r``, paths), and direct references (``name @ url``).
+    The canonical form is what is written to the sandbox's requirements file,
+    one per line, so nothing the author wrote reaches pip verbatim.
+    """
+    if _CONTROL.search(line):
+        return None
+    try:
+        req = Requirement(line)
+    except InvalidRequirement:
+        return None
+    if req.url is not None:
+        return None
+    canonical = str(req)
+    if _CONTROL.search(canonical) or canonical.lstrip().startswith("-"):
+        return None
+    return canonical
+
+
 def is_plain_requirement(line: str) -> bool:
-    """True for ``name[extras] specifiers ; marker`` with no option, URL or path."""
-    if "://" in line or "@" in line or line.startswith(("-", ".", "/", "~")):
-        return False
-    return REQUIREMENT_RE.match(line) is not None
+    """True when :func:`canonical_requirement` accepts ``line``."""
+    return canonical_requirement(line) is not None
 
 
 def _requirement_lines(text: str) -> list[str]:
@@ -63,11 +84,11 @@ def _requirement_lines(text: str) -> list[str]:
 
 
 def _add(deps: DeclaredDependencies, source: str, line: str) -> None:
-    if is_plain_requirement(line):
-        if line not in deps.requirements:
-            deps.requirements.append(line)
-    else:
+    canonical = canonical_requirement(line)
+    if canonical is None:
         deps.refused.append({"source": source, "line": line})
+    elif canonical not in deps.requirements:
+        deps.requirements.append(canonical)
 
 
 def declared_dependencies(project: Path) -> DeclaredDependencies:
@@ -97,5 +118,5 @@ def declared_dependencies(project: Path) -> DeclaredDependencies:
         if declared:
             deps.sources.append("pyproject.toml")
         for item in declared:
-            _add(deps, "pyproject.toml", str(item).strip())
+            _add(deps, "pyproject.toml", item if isinstance(item, str) else repr(item))
     return deps

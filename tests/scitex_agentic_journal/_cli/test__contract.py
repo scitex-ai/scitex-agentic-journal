@@ -105,6 +105,15 @@ def test_admission_evaluate_offers_none_and_apptainer_executors(tmp_path):
     assert "[none|apptainer]" in result.output
 
 
+def test_admission_evaluate_offers_an_image_pin(tmp_path):
+    # Arrange
+    args = ("--help",)
+    # Act
+    result = _evaluate(tmp_path, *args)
+    # Assert
+    assert "--sandbox-image-sha256" in result.output
+
+
 def test_admission_evaluate_rejects_an_unknown_executor(tmp_path):
     # Arrange
     args = ("--executor", "host")

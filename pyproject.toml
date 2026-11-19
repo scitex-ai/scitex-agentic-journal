@@ -65,6 +65,8 @@ dependencies = [
     # Reads [project].dependencies of a snapshot for the isolated executor
     # (tomllib is stdlib from Python 3.11).
     "tomli>=2.0; python_version < '3.11'",
+    # Parses declared requirements canonically for the isolated executor.
+    "packaging>=23.0",
 ]
 
 [project.optional-dependencies]

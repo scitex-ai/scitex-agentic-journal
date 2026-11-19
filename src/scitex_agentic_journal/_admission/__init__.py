@@ -18,6 +18,7 @@ from scitex_agentic_journal._admission._sandbox import (
     SandboxError,
     SandboxResult,
 )
+from scitex_agentic_journal._admission._sandbox_proc import ResourceLimits
 
 __all__ = [
     "FAILED",
@@ -29,6 +30,7 @@ __all__ = [
     "ClewRerunExecutor",
     "Executor",
     "NoExecutor",
+    "ResourceLimits",
     "SandboxError",
     "SandboxResult",
     "load_admission",

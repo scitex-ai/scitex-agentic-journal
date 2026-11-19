@@ -1,18 +1,23 @@
-"""scitex-clew's store-free rerun report, and the check records derived from it.
+"""scitex-clew's store-free rerun report: parsed as a HINT, never as a verdict.
 
-``clew bundle rerun <bundle> --project-root P --timeout S --json`` prints::
+``clew bundle rerun <bundle> --project-root P --work-dir DIR --timeout S
+--python PY --json`` prints (schema 1.1.0)::
 
-    {"schema": "scitex-clew.rerun-report", "schema_version": "1.x.y",
-     "bundle_sha256": str, "executable": bool,
+    {"schema": "scitex-clew.rerun-report", "schema_version": "1.1.0",
+     "bundle_sha256": str, "executable": bool, "work_dir": str | null,
      "runs": [{"run_id", "exit_code", "status": reproduced|differs|failed|skipped,
-               "outputs": [{"path", "expected_sha256", "actual_sha256", "match"}],
+               "run_dir": str | null,
+               "outputs": [{"path", "expected_sha256", "actual_sha256", "match",
+                            "resolved_path"}],
                "stderr_tail"}],
      "claims": [{"claim_id", "status": reproduced|differs|not_checkable,
                  "stated_value", "recomputed_value", "tolerance"}]}
 
-``tolerance`` is the claim's declared precision, decided upstream (design §11
-D13). The structure is checked here field by field; once scitex-clew publishes
-a JSON schema for it, it is vendored and pinned like the live-paper contracts.
+The report is produced inside the sandbox, next to author code (same uid and
+PID namespace), so it can be forged. The journal therefore uses it only for
+(a) ``resolved_path``, to FIND each replayed output in the kept work dir,
+which the host then hashes itself (:mod:`._replay_verify`), and (b) the
+``sandbox_reported`` detail. No check passes because of what it says.
 """
 
 from __future__ import annotations
@@ -20,7 +25,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from scitex_agentic_journal._admission._checks import FAILED, NOT_RUN, PASSED, record
+from scitex_agentic_journal._admission._checks import NOT_RUN, record
 
 REPORT_SCHEMA = "scitex-clew.rerun-report"
 REPORT_MAJOR = "1"
@@ -73,118 +78,22 @@ def parse_rerun_report(text: str) -> dict[str, Any]:
     return report
 
 
-def _runs_detail(report: dict[str, Any]) -> list[dict[str, Any]]:
-    return [
-        {
-            "run_id": run["run_id"],
-            "status": run["status"],
-            "exit_code": run.get("exit_code"),
-            "outputs": [
-                {
-                    "path": out.get("path"),
-                    "match": out.get("match"),
-                    "expected_sha256": out.get("expected_sha256"),
-                    "actual_sha256": out.get("actual_sha256"),
-                }
-                for out in run.get("outputs", [])
-            ],
-        }
-        for run in report["runs"]
-    ]
-
-
-def executability_record(
-    report: dict[str, Any], *, tool: dict[str, Any], details: dict[str, Any]
+def sandbox_reported(
+    report: dict[str, Any] | None, error: str | None
 ) -> dict[str, Any]:
-    """``executability`` passes iff the report says the project is executable."""
-    runs = report["runs"]
-    failed = [r["run_id"] for r in runs if r["status"] == "failed"]
-    body = {
-        **details,
-        "executable": report["executable"],
-        "runs": len(runs),
-        "failed_runs": failed,
+    """The ``sandbox_reported`` detail: what clew said in the sandbox (a hint only)."""
+    if report is None:
+        return {"parsed": False, "error": error}
+    return {
+        "parsed": True,
+        "trusted": False,
+        "schema_version": report.get("schema_version"),
+        "bundle_sha256": report.get("bundle_sha256"),
+        "executable": report.get("executable"),
+        "work_dir": report.get("work_dir"),
+        "runs": {r["run_id"]: r["status"] for r in report["runs"]},
+        "claims": {c["claim_id"]: c["status"] for c in report["claims"]},
     }
-    if report["executable"]:
-        return record(
-            "executability",
-            PASSED,
-            f"executable in isolation ({len(runs)} run(s), {len(failed)} failed)",
-            required=False,
-            tool=tool,
-            details=body,
-        )
-    return record(
-        "executability",
-        FAILED,
-        f"not executable in isolation; failed run(s): {failed}",
-        required=False,
-        tool=tool,
-        details=body,
-    )
-
-
-def reproduction_record(
-    report: dict[str, Any],
-    main_claims: list[str],
-    *,
-    bundle_sha256: str,
-    tool: dict[str, Any],
-    details: dict[str, Any],
-) -> dict[str, Any]:
-    """``reproduction`` passes iff every main claim is ``reproduced``."""
-    by_id = {c["claim_id"]: c for c in report["claims"]}
-    claims = [
-        {
-            "claim_id": c["claim_id"],
-            "main": c["claim_id"] in main_claims,
-            "status": c["status"],
-            "stated_value": c.get("stated_value"),
-            "recomputed_value": c.get("recomputed_value"),
-            "tolerance": c.get("tolerance"),
-        }
-        for c in report["claims"]
-    ]
-    not_reproduced = {
-        cid: (by_id[cid]["status"] if cid in by_id else "not in rerun report")
-        for cid in main_claims
-        if cid not in by_id or by_id[cid]["status"] != "reproduced"
-    }
-    body = {
-        **details,
-        "targets": list(main_claims),
-        "bundle_sha256": report["bundle_sha256"],
-        "claims": claims,
-        "runs": _runs_detail(report),
-        "not_reproduced": not_reproduced,
-    }
-    if report["bundle_sha256"] != bundle_sha256:
-        return record(
-            "reproduction",
-            FAILED,
-            f"the rerun report is for bundle {report['bundle_sha256']}, not the "
-            f"submitted bundle {bundle_sha256}",
-            required=False,
-            tool=tool,
-            details=body,
-        )
-    if not_reproduced:
-        return record(
-            "reproduction",
-            FAILED,
-            f"{len(not_reproduced)} main claim(s) not reproduced: {not_reproduced}",
-            required=False,
-            tool=tool,
-            details=body,
-        )
-    return record(
-        "reproduction",
-        PASSED,
-        f"all {len(main_claims)} main claim(s) reproduced",
-        required=False,
-        tool=tool,
-        details=body,
-    )
 
 
 def not_run_pair(
