@@ -35,6 +35,35 @@ def _fail(exc: Exception) -> click.ClickException:
     return click.ClickException(str(exc))
 
 
+def _build_executor(
+    kind: str, sandbox_image: Path | None, clew_requirement: str | None
+) -> Any:
+    """The admission executor named on the command line (``none`` -> ``None``)."""
+    if kind == "none":
+        return None
+    from scitex_agentic_journal._admission import (
+        ApptainerSandbox,
+        ClewRerunExecutor,
+        SandboxError,
+    )
+
+    if sandbox_image is None:
+        raise click.UsageError(
+            "--executor apptainer needs --sandbox-image "
+            "(or SCITEX_AGENTIC_JOURNAL_SANDBOX_IMAGE)"
+        )
+    if not clew_requirement:
+        raise click.UsageError(
+            "--executor apptainer needs --clew-requirement "
+            "(or SCITEX_AGENTIC_JOURNAL_CLEW_REQUIREMENT)"
+        )
+    try:
+        sandbox = ApptainerSandbox(sandbox_image)
+    except SandboxError as e:
+        raise _fail(e) from e
+    return ClewRerunExecutor(sandbox, clew_requirement=clew_requirement)
+
+
 _json_opt = click.option(
     "--json", "as_json", is_flag=True, help="Print machine-readable JSON."
 )
@@ -74,7 +103,9 @@ def register_contract_commands(main_group: click.Group) -> None:
             raise SystemExit(1)
 
     @bundle.command(name="seal")
-    @click.argument("bundle_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
+    @click.argument(
+        "bundle_dir", type=click.Path(exists=True, file_okay=False, path_type=Path)
+    )
     @_json_opt
     def bundle_seal(bundle_dir: Path, as_json: bool) -> None:
         """Hash every file of BUNDLE_DIR into submission.json's files map.
@@ -132,12 +163,40 @@ def register_contract_commands(main_group: click.Group) -> None:
         is_flag=True,
         help="Accept non-https repository URLs (operator-run local journals only).",
     )
+    @click.option(
+        "--executor",
+        type=click.Choice(["none", "apptainer"]),
+        default="none",
+        show_default=True,
+        help="Where author code runs for executability/reproduction: 'none' (never; "
+        "both checks not-run) or 'apptainer' (a sealed, offline container).",
+    )
+    @click.option(
+        "--sandbox-image",
+        type=click.Path(dir_okay=False, path_type=Path),
+        envvar="SCITEX_AGENTIC_JOURNAL_SANDBOX_IMAGE",
+        help="Apptainer image (.sif, with python3) for --executor apptainer.",
+    )
+    @click.option(
+        "--clew-requirement",
+        envvar="SCITEX_AGENTIC_JOURNAL_CLEW_REQUIREMENT",
+        help="Pinned scitex-clew requirement installed in the sandbox, e.g. "
+        "'scitex-clew==0.35.0' (needs 'clew bundle rerun').",
+    )
     @_json_opt
-    def admission_evaluate(submission_id: str, allow_local_repositories: bool, as_json: bool) -> None:
+    def admission_evaluate(
+        submission_id: str,
+        allow_local_repositories: bool,
+        executor: str,
+        sandbox_image: Path | None,
+        clew_requirement: str | None,
+        as_json: bool,
+    ) -> None:
         """Run every admission check for SUBMISSION_ID; exit 1 if not admitted.
 
         Contacts the ORCID registry, clones the declared repository and runs
-        scitex-dev's lint on it. Author code is not executed.
+        scitex-dev's lint on it. Author code is executed only with
+        --executor apptainer, and then only inside a sealed container.
 
         Example:
 
@@ -146,9 +205,12 @@ def register_contract_commands(main_group: click.Group) -> None:
         from scitex_agentic_journal._admission import run_admission
         from scitex_agentic_journal._records import RecordError
 
+        runner = _build_executor(executor, sandbox_image, clew_requirement)
         try:
             rec = run_admission(
-                submission_id, allow_local_repositories=allow_local_repositories
+                submission_id,
+                allow_local_repositories=allow_local_repositories,
+                executor=runner,
             )
         except RecordError as e:
             raise _fail(e) from e
@@ -191,7 +253,9 @@ def register_contract_commands(main_group: click.Group) -> None:
     @click.argument("submission_id")
     @click.argument("version")
     @click.option("--dry-run", is_flag=True, help="Show the record without writing it.")
-    @click.option("--yes", "-y", "assume_yes", is_flag=True, help="Do not ask for confirmation.")
+    @click.option(
+        "--yes", "-y", "assume_yes", is_flag=True, help="Do not ask for confirmation."
+    )
     @_json_opt
     def preprint_create(
         submission_id: str, version: str, dry_run: bool, assume_yes: bool, as_json: bool

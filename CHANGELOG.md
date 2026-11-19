@@ -4,6 +4,24 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Isolated executor for the `executability` and `reproduction` admission
+  checks (design §11 D17): `admission evaluate --executor apptainer
+  --sandbox-image SIF --clew-requirement 'scitex-clew==X'` runs scitex-clew's
+  store-free `clew bundle rerun` in a sealed apptainer container
+  (`--containall --cleanenv --no-home --no-eval`, offline phases also
+  `--no-mount bind-paths,hostfs,cwd --net --network none`). Declared
+  dependencies (`requirements*.txt`, `[project].dependencies`; options, URLs
+  and paths refused) are fetched as wheels only from the package index
+  BEFORE any author file is in the run, then installed offline. Each run is
+  fresh and leaves only `out/outcome.json` (image sha256, apptainer version,
+  flags, env names, per-phase argv/egress/timing/exit/output hashes); the
+  check records cite it by hash. The default stays `--executor none`; both
+  checks remain non-blocking for admission (§13.1). SAC 0.40.x cannot be
+  used for this yet: its sealed runs require a TUI agent harness and a model
+  key.
+
 ## [0.2.0] - 2026-11-19
 
 Contract-based path for the stages before review (design:

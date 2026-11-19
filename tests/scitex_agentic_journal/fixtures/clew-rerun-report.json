@@ -1,0 +1,52 @@
+{
+  "schema": "scitex-clew.rerun-report",
+  "schema_version": "1.0.0",
+  "bundle_sha256": "9f2c5e7a1b3d4c6e8f0a2b4c6d8e0f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3e",
+  "executable": true,
+  "runs": [
+    {
+      "run_id": "2026Y-11M-19D-10h00m00s_aB3d",
+      "exit_code": 0,
+      "status": "reproduced",
+      "outputs": [
+        {
+          "path": "scripts/train_out/metrics.json",
+          "expected_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+          "actual_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+          "match": true
+        }
+      ],
+      "stderr_tail": ""
+    },
+    {
+      "run_id": "2026Y-11M-19D-10h05m00s_Xy9z",
+      "exit_code": 0,
+      "status": "differs",
+      "outputs": [
+        {
+          "path": "scripts/count_out/n_rows.txt",
+          "expected_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+          "actual_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+          "match": false
+        }
+      ],
+      "stderr_tail": ""
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "auc",
+      "status": "reproduced",
+      "stated_value": 0.91,
+      "recomputed_value": 0.9104,
+      "tolerance": 0.005
+    },
+    {
+      "claim_id": "n_rows",
+      "status": "differs",
+      "stated_value": 1000,
+      "recomputed_value": 998,
+      "tolerance": 0
+    }
+  ]
+}

@@ -441,7 +441,7 @@ Same schemas for both; only `reviewer.kind` and identity fields differ.
 | D14 | Certificate signing key and scheme (§13.2) | One journal signing key with a published public key and rotation record. The scheme is to be chosen |
 | D15 | Corpus record licence and default publication conditions (§15) | Follow each claim's data and code licences. Records are exported only for accepted claims |
 | D16 | The journal cannot re-derive evidence states from a snapshot: Clew keeps runs and claims in the authors' host store (Postgres), not in the repository | Ask scitex-clew for a portable, signed export of a project's runs and claims that travels with the snapshot. Until then `clew-reverify` is recorded as `not-run` and admission relies on the submitted report validating against the pinned contract |
-| D17 | Executability and reproduction need an isolated executor: `clew rerun` replays author code on the host with no isolation | Add an apptainer executor (`--containall --cleanenv --no-home --net --network none`) behind the `Executor` protocol. Until then both checks are `not-run` |
+| D17 | Executability and reproduction need an isolated executor: `clew rerun` replays author code on the host with no isolation | **Implemented** (`_admission/_sandbox.py`, `_executor.py`): `--executor apptainer` runs `clew bundle rerun` in a sealed apptainer run (`--containall --cleanenv --no-home --no-eval`; offline phases `--no-mount bind-paths,hostfs,cwd --net --network none`); dependencies are fetched as wheels before any author file is staged. SAC 0.40.x seals only TUI agent panes (harness + model key required), so it cannot run a plain command yet. Default `--executor none` keeps both checks `not-run` |
 
 ## 12. Review findings as hosted issues
 
