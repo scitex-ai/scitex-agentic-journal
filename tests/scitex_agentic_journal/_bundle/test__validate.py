@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 
 import pytest
-from scitex_agentic_journal._bundle import validate_bundle
+from scitex_agentic_journal._bundle import seal_bundle, validate_bundle
 
 from tests.scitex_agentic_journal._contract_helpers import (
     REFERENCE_BUNDLE,
@@ -182,3 +182,25 @@ def test_missing_directory_is_reported(tmp_path):
     codes = _codes(path)
     # Assert
     assert codes == {"not-a-directory"}
+
+
+def test_seal_makes_an_edited_bundle_valid_again(bundle):
+    # Arrange
+    (bundle / "references.bib").write_text("@misc{y, title={revised}}\n")
+    (bundle / "manuscript" / "supplement.pdf").write_bytes(b"%PDF-1.4\n")
+    seal_bundle(bundle)
+    # Act
+    result = validate_bundle(bundle)
+    # Assert
+    assert result.findings == []
+
+
+def test_seal_refuses_symlinks(bundle):
+    # Arrange
+    (bundle / "manuscript" / "link.tex").symlink_to(bundle / "manuscript" / "paper.tex")
+    # Act
+    call = lambda: seal_bundle(bundle)  # noqa: E731
+    # Assert
+    with pytest.raises(ValueError, match="symlink"):
+        call()
+

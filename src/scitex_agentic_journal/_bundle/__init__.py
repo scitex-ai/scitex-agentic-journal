@@ -12,6 +12,7 @@ from scitex_agentic_journal._bundle._submit import (
 from scitex_agentic_journal._bundle._validate import (
     BundleValidation,
     Finding,
+    seal_bundle,
     validate_bundle,
 )
 
@@ -22,6 +23,7 @@ __all__ = [
     "IntakeReceipt",
     "bundle_path",
     "load_intake",
+    "seal_bundle",
     "submit_bundle",
     "validate_bundle",
 ]

@@ -54,9 +54,14 @@ def run_admission(
     orcid_base_url: str = ORCID_PUB_API_BASE,
     lint_argv: list[str] | None = None,
     executor: Executor | None = None,
+    allow_local_repositories: bool = False,
     now: datetime | None = None,
 ) -> dict[str, Any]:
-    """Run the admission checks for an accepted intake; return the admission record."""
+    """Run the admission checks for an accepted intake; return the admission record.
+
+    ``allow_local_repositories`` admits non-https repository URLs (local
+    paths, ``file://``). It is for tests and operator-run local journals only.
+    """
     load_intake(submission_id, home=home)  # raises RecordError if never submitted
     record_dir = submission_dir(submission_id, home)
     validation = validate_bundle(bundle_path(submission_id, home=home))
@@ -73,7 +78,10 @@ def run_admission(
 
     checks: list[dict[str, Any]] = [check_orcid(manifest, base_url=orcid_base_url)]
     repo_check, project = checkout_repository(
-        manifest, record_dir / "work" / "checkout", env=env
+        manifest,
+        record_dir / "work" / "checkout",
+        env=env,
+        allow_local=allow_local_repositories,
     )
     checks.append(repo_check)
     checks.append(check_scitex_form(project, env=env, lint_argv=lint_argv))

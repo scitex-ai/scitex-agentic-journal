@@ -12,7 +12,8 @@ alongside the legacy intake, which keeps working.
 
 ### Added
 
-- `bundle validate|submit`: a submission bundle (`submission.json` manifest,
+- `bundle seal|validate|submit`: `seal` writes every file's hash into
+  the manifest (for `make submit`-style tooling). A submission bundle (`submission.json` manifest,
   manuscript, scitex-live-paper evidence report and review packet,
   bibliography) is validated against **vendored, version-pinned**
   scitex-live-paper schemas (evidence-report and review-packet 1.2.0, pinned
@@ -23,7 +24,9 @@ alongside the legacy intake, which keeps working.
   hash, so resubmitting identical bytes is idempotent.
 - `admission evaluate|show`: admission checks with explicit records:
   - ORCID resolves and belongs to an author;
-  - the declared repository commit checks out without credentials;
+  - the declared repository commit checks out without credentials (only
+    `https://` URLs; local paths need the operator flag
+    `--allow-local-repositories`, and a URL is never parsed as a git option);
   - scitex-dev's research lint passes with zero errors and every rule run;
   - every declared main claim is `supported` with an evidence graph.
 

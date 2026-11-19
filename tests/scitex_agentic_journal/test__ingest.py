@@ -87,7 +87,7 @@ def preprint(tmp_path_factory):
     home = tmp / "home"
     sid = submit_bundle(bundle, home=home).submission_id
     with OrcidServer() as orcid:
-        run_admission(sid, home=home, orcid_base_url=orcid)
+        run_admission(sid, home=home, orcid_base_url=orcid, allow_local_repositories=True)
     create_preprint(sid, "v1.1.0", home=home)
     return sid, home
 

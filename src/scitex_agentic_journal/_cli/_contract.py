@@ -2,6 +2,7 @@
 
 The stages before review (design 01 §0, §10):
 
+    bundle seal DIR         hash every file into submission.json (files map)
     bundle validate DIR     check a submission bundle, print every finding
     bundle submit DIR       record a valid bundle, print its submission id
     admission evaluate ID   run the admission checks, record the outcome
@@ -72,6 +73,26 @@ def register_contract_commands(main_group: click.Group) -> None:
         if not v.ok:
             raise SystemExit(1)
 
+    @bundle.command(name="seal")
+    @click.argument("bundle_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
+    @_json_opt
+    def bundle_seal(bundle_dir: Path, as_json: bool) -> None:
+        """Hash every file of BUNDLE_DIR into submission.json's files map.
+
+        Only the files map is rewritten; validate afterwards.
+
+        Example:
+
+          $ scitex-agentic-journal bundle seal ./submission
+        """
+        from scitex_agentic_journal._bundle import seal_bundle
+
+        try:
+            files = seal_bundle(bundle_dir)
+        except (ValueError, OSError) as e:
+            raise _fail(e) from e
+        _emit({"files": files}, as_json, f"SEALED {bundle_dir} files={len(files)}")
+
     @bundle.command(name="submit")
     @click.argument("bundle_dir", type=click.Path(path_type=Path))
     @_json_opt
@@ -106,8 +127,13 @@ def register_contract_commands(main_group: click.Group) -> None:
 
     @admission.command(name="evaluate")
     @click.argument("submission_id")
+    @click.option(
+        "--allow-local-repositories",
+        is_flag=True,
+        help="Accept non-https repository URLs (operator-run local journals only).",
+    )
     @_json_opt
-    def admission_evaluate(submission_id: str, as_json: bool) -> None:
+    def admission_evaluate(submission_id: str, allow_local_repositories: bool, as_json: bool) -> None:
         """Run every admission check for SUBMISSION_ID; exit 1 if not admitted.
 
         Contacts the ORCID registry, clones the declared repository and runs
@@ -121,7 +147,9 @@ def register_contract_commands(main_group: click.Group) -> None:
         from scitex_agentic_journal._records import RecordError
 
         try:
-            rec = run_admission(submission_id)
+            rec = run_admission(
+                submission_id, allow_local_repositories=allow_local_repositories
+            )
         except RecordError as e:
             raise _fail(e) from e
         lines = [f"ADMISSION submission_id={submission_id} admitted={rec['admitted']}"]

@@ -26,7 +26,7 @@ def _admit(tmp_path, *, research=True, **manifest_changes):
     home = tmp_path / "home"
     sid = submit_bundle(bundle, home=home).submission_id
     with OrcidServer() as orcid:
-        record = run_admission(sid, home=home, orcid_base_url=orcid)
+        record = run_admission(sid, home=home, orcid_base_url=orcid, allow_local_repositories=True)
     return record, sid, home
 
 
@@ -119,7 +119,7 @@ def test_unreachable_repository_blocks_admission(tmp_path):
     sid = submit_bundle(bundle, home=home).submission_id
     # Act
     with OrcidServer() as orcid:
-        record = run_admission(sid, home=home, orcid_base_url=orcid)
+        record = run_admission(sid, home=home, orcid_base_url=orcid, allow_local_repositories=True)
     # Assert
     assert set(record["blocking"]) == {"repository", "scitex-form"}
 
@@ -131,3 +131,31 @@ def test_unknown_submitter_orcid_blocks_admission(tmp_path):
     check = _check(record, "orcid")
     # Assert
     assert check["status"] == "failed"
+
+
+def test_non_https_repository_is_refused_by_default(tmp_path):
+    # Arrange
+    url, commit = make_research_repo(tmp_path / "repo")
+    bundle = copy_reference_bundle(tmp_path / "bundle")
+    point_bundle_at(bundle, url, commit)
+    home = tmp_path / "home"
+    sid = submit_bundle(bundle, home=home).submission_id
+    # Act
+    with OrcidServer() as orcid:
+        record = run_admission(sid, home=home, orcid_base_url=orcid)
+    # Assert
+    assert "not https://" in _check(record, "repository")["reason"]
+
+
+def test_option_like_repository_url_is_never_passed_as_a_git_option(tmp_path):
+    # Arrange
+    bundle = copy_reference_bundle(tmp_path / "bundle")
+    point_bundle_at(bundle, "--upload-pack=touch " + str(tmp_path / "pwned"), "0" * 40)
+    home = tmp_path / "home"
+    sid = submit_bundle(bundle, home=home).submission_id
+    # Act
+    with OrcidServer() as orcid:
+        run_admission(sid, home=home, orcid_base_url=orcid, allow_local_repositories=True)
+    # Assert
+    assert not (tmp_path / "pwned").exists()
+

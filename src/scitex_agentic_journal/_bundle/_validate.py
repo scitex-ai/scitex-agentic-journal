@@ -286,3 +286,28 @@ def validate_bundle(bundle_dir: Path | str) -> BundleValidation:
     ):
         _check_consistency(result, result.manifest, report, packet)
     return result
+
+
+def seal_bundle(bundle_dir: Path | str) -> dict[str, str]:
+    """Rewrite ``submission.json``'s ``files`` map from the files on disk.
+
+    Every regular file except the manifest is hashed; nothing else in the
+    manifest changes. Symlinks are refused rather than followed. Returns the
+    new ``files`` map. Run :func:`validate_bundle` afterwards: sealing does
+    not make an otherwise invalid bundle valid.
+    """
+    root = Path(bundle_dir).expanduser().resolve()
+    manifest_path = root / MANIFEST
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict):
+        raise ValueError(f"{manifest_path} must hold a JSON object")
+    files: dict[str, str] = {}
+    for path in sorted(root.rglob("*")):
+        rel = path.relative_to(root).as_posix()
+        if path.is_symlink():
+            raise ValueError(f"{rel} is a symlink; bundles must hold real files")
+        if path.is_file() and rel != MANIFEST:
+            files[rel] = "sha256:" + file_sha256(path)
+    manifest["files"] = files
+    manifest_path.write_text(json.dumps(manifest, indent=1) + "\n", encoding="utf-8")
+    return files

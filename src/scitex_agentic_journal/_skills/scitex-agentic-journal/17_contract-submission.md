@@ -13,7 +13,7 @@ It sits **alongside** the legacy `submit/review/decide` intake.
 ## Flow
 
 ```
-bundle validate DIR  →  bundle submit DIR  →  admission evaluate ID  →  preprint create ID vX.Y.Z --yes  →  reviews ingest ID report.json source.json
+bundle seal DIR  →  bundle validate DIR  →  bundle submit DIR  →  admission evaluate ID  →  preprint create ID vX.Y.Z --yes  →  reviews ingest ID report.json source.json
 ```
 
 Every command takes `--json`. Records go to
@@ -50,7 +50,7 @@ canonical manifest.
 | check | required | what |
 |---|---|---|
 | `orcid` | yes | the submitter's ORCID resolves and is among the authors |
-| `repository` | yes | `repository.commit` checks out without credentials |
+| `repository` | yes | `repository.commit` checks out without credentials; `https://` only (operator flag `--allow-local-repositories` for local journals) |
 | `scitex-form` | yes | `scitex-dev linter validate-files --json`: `.scitex/dev/config.yaml` declares `project-type: research`, there are 0 errors, and `all_rules_ran` |
 | `main-claims-evidence` | yes | every main claim is `supported` with an evidence graph |
 | `clew-reverify` | no | `not-run`: Clew state lives in the authors' host store, not in the snapshot |

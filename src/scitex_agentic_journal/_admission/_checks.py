@@ -96,12 +96,34 @@ def check_orcid(
 
 
 def checkout_repository(
-    manifest: dict[str, Any], dest: Path, *, env: dict[str, str]
+    manifest: dict[str, Any],
+    dest: Path,
+    *,
+    env: dict[str, str],
+    allow_local: bool = False,
 ) -> tuple[dict[str, Any], Path | None]:
-    """Clone the declared repository and check out the declared commit exactly."""
+    """Clone the declared repository and check out the declared commit exactly.
+
+    Only ``https://`` URLs are accepted unless ``allow_local`` is set (tests,
+    operator-run local journals): a submission must never make the journal
+    clone a path or ``file://`` repository from its own host. Git is pinned to
+    the same protocols through ``GIT_ALLOW_PROTOCOL``, and ``--`` ends option
+    parsing so a URL can never be read as a git option.
+    """
     repo = manifest["repository"]
     url, commit = repo["url"], repo["commit"]
     tool = {"name": "git", "version": None}
+    if not (url.startswith("https://") or allow_local):
+        return record(
+            "repository",
+            FAILED,
+            f"repository url {url!r} is not https://; only public https "
+            "repositories are accepted",
+            required=True,
+            tool=tool,
+            details={"url": url},
+        ), None
+    env = {**env, "GIT_ALLOW_PROTOCOL": "https:file" if allow_local else "https"}
     if dest.exists():
         head = run(["git", "-C", str(dest), "rev-parse", "HEAD"], env=env, timeout_s=30)
         if head.returncode == 0 and head.stdout.strip() == commit:
@@ -122,7 +144,7 @@ def checkout_repository(
         ), None
     dest.parent.mkdir(parents=True, exist_ok=True)
     clone = run(
-        ["git", "clone", "--quiet", "--no-checkout", url, str(dest)],
+        ["git", "clone", "--quiet", "--no-checkout", "--", url, str(dest)],
         env=env,
         timeout_s=GIT_TIMEOUT_S,
     )

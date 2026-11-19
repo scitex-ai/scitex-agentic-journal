@@ -26,7 +26,7 @@ def _submitted(tmp_path, *, research=True):
     home = tmp_path / "home"
     sid = submit_bundle(bundle, home=home).submission_id
     with OrcidServer() as orcid:
-        run_admission(sid, home=home, orcid_base_url=orcid)
+        run_admission(sid, home=home, orcid_base_url=orcid, allow_local_repositories=True)
     return sid, home
 
 
