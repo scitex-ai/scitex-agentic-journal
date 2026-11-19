@@ -1,13 +1,39 @@
-# Design 01 — Contract-based submission and independent review panel
+# Design 01 — Contract-based submission, admission and review ingestion
 
-Status: **proposal, awaiting an operator decision on §2** (2026-11-19).
-Scope: the smallest implementable design for
-submission → review assignment → review → decision, in which reviewers
-are independent of the authors' agents and every verdict points at a
-registered claim. Findings are tracked as issues on the authors' git host
-(§12). It covers both stages, preprint and then journal, with their gates and
-DOIs (§13), and how transparency answers the "predatory journal" criticism
-(§14). Each accepted claim is also exported as a corpus record (§15).
+Status: **accepted with re-scope (2026-11-19)**. See §0. Phase 2 implements
+the stages *before* review.
+
+Scope: submission → admission checks → preprint snapshot → review
+ingestion → decision. Every verdict points at a registered claim. Findings
+are tracked as issues on the authors' git host (§12). The two stages,
+preprint and then journal, are covered with their gates and DOIs (§13), and
+transparency is the answer to the "predatory journal" criticism (§14). Each
+accepted claim is also exported as a corpus record (§15).
+
+## 0. Decisions and re-scope (operator, 2026-11-19)
+
+- **D1 = Option A.** The new path is added alongside the legacy one and
+  nothing existing breaks.
+- **Reviewing is not the focus now.** The journal **accepts** reviews; it
+  does not produce them. Reviews may come from:
+  - external AI review services;
+  - human researchers writing reviews manually;
+  - other users.
+
+  The K-sealed-SAC reviewer panel (§6, `_panel`) is kept as a **future
+  option** and is not built in Phase 2. D4 and D6 are moot.
+- **Review ingestion (§7a)** is a generic interface. Any source files a
+  `review-report` (§7) together with a `source` provenance block. The
+  journal validates it against the packet, records it, and tracks its
+  findings as issues (§12). The journal never assumes it produced a review.
+- **Phase 2** covers the stages before review: intake (repo or bundle, ORCID
+  link, licence), admission checks (SciTeX form, Clew verify, executability
+  and reproduction), preprint snapshot (version, Live Paper contract,
+  internal ID, DOI adapter later), and the fix for defect 1 (no decision
+  without a real review on record).
+- **D2:** live-paper publishes the review-packet JSON schema (separate PR
+  there), and the journal vendors it pinned by commit.
+- **D3, D5:** as recommended in §11.
 
 ## 1. Where the repo stands (audit of `develop` @ 3824d01, v0.1.0a4)
 
@@ -47,7 +73,7 @@ Defects found:
 4. **README "Status: Pre-alpha — design + scaffold only"** contradicts the
    alpha status line at the top of the same file.
 
-## 2. Direction conflict (decision needed)
+## 2. Direction conflict (decided: Option A, §0)
 
 The repo's documented design (`_skills/.../13_review-and-decision.md`) and the
 vision this document serves disagree on four points:
@@ -204,7 +230,11 @@ scitex-agentic-journal review template <id>                  # human reviewer fo
 scitex-agentic-journal review file     <id> report.json      # human reviewer submit
 ```
 
-## 6. Reviewer independence
+## 6. Reviewer independence (future option: in-house reviewer panel)
+
+*Not built in Phase 2 (§0). For ingested reviews, the journal records the
+independence facts the source declares (§7a); it guarantees them only for
+reviews it runs itself.*
 
 Independence is enforced by construction, recorded, and reported — never
 assumed.
@@ -276,6 +306,47 @@ Rules checked at collection:
   `general_findings`, which carry severity but no claim assessment;
 - for `kind: "human"`, `model` is null and `orcid` is required.
 
+## 7a. Review ingestion (any source)
+
+```
+scitex-agentic-journal review file <submission-id> report.json [--source source.json]
+```
+
+The same operation is available from the portal and, later, MCP. The report
+follows §7. The `reviewer` block is replaced by a journal-verified **source**
+block:
+
+```json
+"source": {
+  "kind": "human | external-service | journal-panel",
+  "reviewer_pseudonym": "r3",
+  "identity": {"orcid": "0000-…", "service": "…", "service_version": "…",
+               "model": {"provider": "…", "name": "…", "served_version": null}},
+  "declared_independence": {"not_an_author": true, "saw_author_materials": false,
+                            "conflicts": "none declared"},
+  "attestation": "<how the identity was established: ORCID login | service API key id | signed payload>",
+  "disclosure": "blind | model-family | open"
+}
+```
+
+Rules:
+
+- **Identity comes from the channel, not the payload.** A human is
+  identified by their ORCID login. An external service is identified by the
+  journal-issued key it called with. A free-text claim inside the report is
+  stored but never trusted.
+- **Validation** follows §7: claim ids and graph nodes are checked against
+  the packet, `packet_state` is written by the journal, unmentioned claims
+  are recorded as `not-assessed`, and untagged text gets general findings
+  only.
+- **Authors cannot review their own submission.** Any producer listed in
+  the manifest (`produced_by`) is refused as a reviewer.
+- **Findings become issues (§12).** Re-checks in later rounds come from the
+  same source, identified by the same channel.
+- **Undeclared independence is reported.** The editor summary shows
+  `distinct_models` and, per source, its declared independence. Missing
+  declarations are flagged, not assumed.
+
 ## 8. Editor summary and decision
 
 `editor-summary.json` (+ a plain-text rendering) per submission:
@@ -307,36 +378,56 @@ summary items. Automatic decision rules can be added later as a
 
 Same schemas for both; only `reviewer.kind` and identity fields differ.
 
-## 10. Phase-2 slice (Option A)
+## 10. Phase-2 slice (re-scoped, §0)
 
-1. `_contracts`: vendored live-paper schemas + journal schemas + hash test.
-2. `_bundle`: validate + submit (idempotent id), records.
-3. `_panel`: reviewer spec template (SAC `scitex-agent-container/v3`,
-   sealed `sandbox` block, prompt asks for `review-report.json` then `DONE`),
-   assign, run via the `sac agents start|stop|delete` CLI (subprocess with an
-   explicit allowlisted env, never `os.environ`), wait on `outcome.json`
-   `status: finalized` with a deadline, collect outcome + egress logs. Reuses
-   the staging/lock lessons from paper-scitex-clew's `scripts/_sac_runner`
-   (spec-repo lock, input manifest check) rather than importing it.
-4. `_report` + `_editor`: report validation against the packet, summary.
-5. `decide` refuses stub-adapter records (defect 1).
-6. `_tracker`: the issue-tracker contract (§12) with the `local` tracker
-   (journal-owned records, no network) and the GitHub adapter; GitHub tests
-   run against a throwaway repo behind `SCITEX_RUN_NETWORK_TESTS=1`.
-7. Tests: real bundle fixtures produced by live-paper; real `sac` runs behind
-   the opt-in marker `SCITEX_RUN_SAC_TESTS=1`.
-8. Release 0.2.0.
+1. `_contracts`:
+   - vendored live-paper schemas (evidence report, review packet), pinned by
+     commit, plus a hash test;
+   - journal-owned schemas: submission, check record, preprint record,
+     review report.
+2. `_bundle`: `bundle validate|submit` for the submission bundle (§3):
+   - manifest checks, file hashes, no unlisted files;
+   - evidence-report schema, packet/report consistency;
+   - licence and public-data declaration (§13.1b);
+   - idempotent submission id and records.
+3. `_admission`: the admission checks (§13.1). Each check writes a check
+   record `{check, status: passed | failed | not-run, reason, tool, version,
+   inputs/outputs hashes}`:
+   - **ORCID**: reuses `_gate1/_orcid`.
+   - **SciTeX form**: the scitex-dev research lint, run as a subprocess.
+   - **Clew verify**: re-derives the evidence states from the snapshot and
+     compares them with the submitted report.
+   - **Executability and reproduction**: run behind an executor adapter.
+     The default executor is `none`, which yields `not-run` with an explicit
+     reason. Author code never runs on the journal host outside an isolated
+     executor.
+
+   All subprocesses get an explicit allowlisted environment.
+4. `_preprint`: the snapshot record:
+   - repo, tag, commit, bundle hash;
+   - version, plus the internal ID from the existing `InternalIdMinter`;
+   - DOI through the existing `IdMinter` adapters, later and optional;
+   - the Live Paper input taken from the live-paper contract.
+5. `_ingest`: review ingestion (§7a), with validation against the packet.
+6. **Defect 1:** `decide` refuses review records that are not real (stub
+   adapters, or none on record).
+7. Issue tracking (§12) is designed but not shipped in 0.2.0. Ingested
+   findings are kept in the `local` tracker records, and the GitHub adapter
+   follows.
+8. Tests use a real bundle built from the live-paper MNIST example, with
+   opt-in markers for network and subprocess tools.
+9. Release 0.2.0.
 
 ## 11. Open decisions
 
 | id | Question | Recommendation |
 |---|---|---|
-| D1 | Option A (add beside legacy) or B (replace core)? (§2) | A |
-| D2 | live-paper publishes `review-packet.schema.json` (packet is defined only in `_packet.py` today) | Ask live-paper to ship it in the wheel next to the evidence-report schema; the journal vendors it when released |
-| D3 | SAC has no read-only input mount and no served-model pin (`readonly_packet`, `model_pin` unmet in 0.40.1) | Accept for the first slice with the manifest check and `served_version: null`; request both from SAC |
-| D4 | Default panel: K and model mix | K = 3 with at least two distinct model families when keys exist; the summary always states `distinct_models` |
+| D1 | Option A (add beside legacy) or B (replace core)? (§2) | **Decided: A** |
+| D2 | live-paper publishes `review-packet.schema.json` (packet is defined only in `_packet.py` today) | **Decided:** live-paper ships it next to the evidence-report schema, and the journal vendors it pinned by commit |
+| D3 | *(applies to the future in-house panel)* SAC has no read-only input mount and no served-model pin (`readonly_packet`, `model_pin` unmet in 0.40.1) | Accept for the first slice with the manifest check and `served_version: null`; request both from SAC |
+| D4 | *(moot, §0)* Default panel: K and model mix | K = 3 with at least two distinct model families when keys exist; the summary always states `distinct_models` |
 | D5 | Who decides: human editor only, or agent editor allowed | Both allowed, recorded; rule-based v2 only as a suggestion |
-| D6 | Reviewer egress beyond the model endpoint (literature search for novelty) | Off in v1; novelty is out of scope of claim-level review |
+| D6 | *(moot, §0)* Reviewer egress beyond the model endpoint (literature search for novelty) | Off in v1; novelty is out of scope of claim-level review |
 | D7 | Reviewer disclosure on public issues (§12.5) | `model-family` for agents, `blind` for humans; `open` per submission opt-in |
 | D8 | Default issue venue (§12.6) | Author repo when the journal's app is installed there; otherwise a private journal-owned review repo |
 | D9 | GitHub credential type | GitHub App (per-repo install, scoped `issues:write` + `metadata:read`) over a personal token |
