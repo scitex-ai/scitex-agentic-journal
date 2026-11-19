@@ -431,17 +431,18 @@ Same schemas for both; only `reviewer.kind` and identity fields differ.
 | D4 | *(moot, §0)* Default panel: K and model mix | K = 3 with at least two distinct model families when keys exist; the summary always states `distinct_models` |
 | D5 | Who decides: human editor only, or agent editor allowed | Both allowed, recorded; rule-based v2 only as a suggestion |
 | D6 | *(moot, §0)* Reviewer egress beyond the model endpoint (literature search for novelty) | Off in v1; novelty is out of scope of claim-level review |
-| D7 | Reviewer disclosure on public issues (§12.5) | `model-family` for agents, `blind` for humans; `open` per submission opt-in |
-| D8 | Default issue venue (§12.6) | Author repo when the journal's app is installed there; otherwise a private journal-owned review repo |
-| D9 | GitHub credential type | GitHub App (per-repo install, scoped `issues:write` + `metadata:read`) over a personal token |
-| D10 | Contract for the preprint admission lint (§13.1): the exact scitex-dev command and the JSON output it emits | Pin it like the live-paper schemas. Whether scitex-dev publishes a machine-readable report schema is not yet confirmed; if it does not, ask scitex-dev for one |
-| D11 | Acceptance gate strictness: are claims that are `not_checkable` or have `no_evidence_graph` allowed as editor-acknowledged exceptions, or must every claim be `supported`? | Allow listed exceptions with reasons. They are shown on the article page |
-| D12 | Should the review record get its own DOI? | Yes, once a DOI backend is configured |
-| D13 | Reproduction tolerance (§13.1 check 4): exact hash match only, or tolerances declared by the authors? | Hash match by default. Author-declared tolerances are allowed per output, shown on the certificate, and reviewers can challenge them |
-| D14 | Certificate signing key and scheme (§13.2) | One journal signing key with a published public key and rotation record. The scheme is to be chosen |
-| D15 | Corpus record licence and default publication conditions (§15) | Follow each claim's data and code licences. Records are exported only for accepted claims |
-| D16 | The journal cannot re-derive evidence states from a snapshot: Clew keeps runs and claims in the authors' host store (Postgres), not in the repository | Ask scitex-clew for a portable, signed export of a project's runs and claims that travels with the snapshot. Until then `clew-reverify` is recorded as `not-run` and admission relies on the submitted report validating against the pinned contract |
-| D17 | Executability and reproduction need an isolated executor: `clew rerun` replays author code on the host with no isolation | Add an apptainer executor (`--containall --cleanenv --no-home --net --network none`) behind the `Executor` protocol. Until then both checks are `not-run` |
+| D7 | Reviewer disclosure on public issues (§12.5) | **Decided (default):** reviewers are pseudonymous by default; humans may opt in to disclosure; an AI review service and its model are always disclosed |
+| D8 | Default issue venue (§12.6) | **Decided (default):** issues go to the author's repository; private submissions use a private journal-owned repository |
+| D9 | GitHub credential type | **Decided:** a GitHub App (per-repo install, scoped `issues:write` + `metadata:read`) when hosted issue filing is built |
+| D10 | Contract for the preprint admission lint (§13.1) | **Decided:** scitex-dev's machine-readable JSON (`linter validate-files --json`) together with the scitex-dev version, both recorded in the check record |
+| D11 | Acceptance gate strictness: may claims that are `not_checkable` or have `no_evidence_graph` be accepted as editor-acknowledged exceptions? | **Open, for the user.** Recommendation: allow listed exceptions with reasons, shown on the article page |
+| D12 | Should the review record get its own DOI? | **Open, for the user.** Recommendation: yes, once a DOI backend is configured |
+| D13 | Reproduction tolerance (§13.1 check 4) | **Decided:** by default, the tolerance implied by the claim's declared precision, as in Clew's own claim checks |
+| D14 | Certificate signing key and scheme (§13.2) | **Open, for the user** (together with the production policy for the Clew evidence-bundle signing key) |
+| D15 | Corpus record licence and default publication conditions (§15) | **Open, for the user.** Recommendation: follow each claim's data and code licences, and export records only for accepted claims |
+| D16 | Clew state lives in the authors' host store, not in the snapshot | **Decided:** a portable, signed, versioned Clew evidence-bundle exchange format (`.scitex/clew/evidence-bundle.json`) travels with the repository. The journal consumes it through a pinned schema and does not import clew. Signing is pluggable; the production key policy is open (D14) |
+| D17 | Isolated executor for executability and reproduction | **Decided:** a SAC sealed run (no host access, empty or package-index-only egress allowlist, per-run reset, outcome record), or plain apptainer `--net none` if SAC cannot run a plain command. Inside the sandbox it runs clew's store-free rerun of the evidence bundle |
+| D18 | Outbound fetches steered by a submission (server-side request forgery) | **Decided and shipped (0.3.0):** resolve-then-connect. Loopback, private, link-local, multicast, reserved and unspecified targets (including IPv4-mapped IPv6) are refused, and git is pinned to the vetted address with redirects disabled |
 
 ## 12. Review findings as hosted issues
 
