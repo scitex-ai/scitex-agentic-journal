@@ -22,6 +22,20 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
   used for this yet: its sealed runs require a TUI agent harness and a model
   key.
 
+### Security
+
+- Outbound-network policy for fetches a submission can steer (D18): the
+  repository host is resolved once, and any loopback, private, link-local,
+  multicast, reserved or unspecified answer (including IPv4-mapped IPv6) is
+  refused. git is then pinned to the vetted address with
+  `http.curloptResolve` and redirects are disabled, so DNS rebinding and
+  redirects cannot reach internal hosts.
+
+### Changed
+
+- Design doc records the operator decisions D7-D10, D13 and D16-D18, and lists
+  D11, D12, D14 and D15 as open for the user.
+
 ## [0.2.0] - 2026-11-19
 
 Contract-based path for the stages before review (design:
