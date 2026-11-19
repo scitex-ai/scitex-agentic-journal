@@ -13,10 +13,10 @@ What this proves that the per-stage unit tests don't:
   M2 reads M1's record, M3 reads M2's, M4 sits next to both, M5 reads
   all four. A future shape drift in any one persister surfaces here
   as a real error, not as a silent skip downstream.
-* The deterministic local adapter / default decision rules / internal
-  id-minter / local-filesystem live-paper port really do compose to
-  a green "accept → published" path — the operator-facing claim in
-  the README and ``examples/README.md``.
+* A local-deterministic placeholder review is refused by ``decide``;
+  a live review record, the default decision rules, the internal
+  id-minter and the local-filesystem live-paper port compose to a green
+  "accept → published" path.
 
 Each assertion is its own test (PA-307 §3 STX-TQ001 — one assertion
 per body). All tests share one materialised home via a module-scope
@@ -87,15 +87,48 @@ def _write_gate1_record(home: Path, bundle_dir: Path) -> Path:
     return submission_dir
 
 
-def _run_full_pipeline(home: Path) -> None:
+def _live_review_record():
+    """A review record as a real (live) reviewer would persist it.
+
+    The local-deterministic adapter is a placeholder; since 0.2.0 the
+    decision engine refuses its records. The publish half of the loop is
+    therefore driven by a record whose ``adapter_mode`` is ``live``.
+    """
+    from scitex_agentic_journal._review import (
+        ARA_RUBRIC_VERSION,
+        ClaimVerifyReport,
+        MethodologyReport,
+        NoveltyReport,
+        ReproducibilityReport,
+        ReviewRecord,
+    )
+
+    return ReviewRecord(
+        submission_id=SUBMISSION_ID,
+        adapter="fixture-live-reviewer",
+        adapter_version="1.0.0",
+        prompts_version="v1",
+        rubric_version=ARA_RUBRIC_VERSION,
+        reproducibility=ReproducibilityReport(passed=True, sandbox_image="fixture"),
+        claim_verify=ClaimVerifyReport(green_claim_ids=("c1",)),
+        novelty=NoveltyReport(overlap_score=0.1),
+        methodology=MethodologyReport(criticisms=()),
+        started_at=FIXED_NOW,
+        finished_at=FIXED_NOW,
+        adapter_mode="live",
+    )
+
+
+def _run_full_pipeline(home: Path) -> dict:
     """Drive every CLI stage of the loop against ``home``.
 
     Kept as a free function (not inlined into the fixture body) because
     the audit's STX-TQ004 rule forbids state-mutating verbs inside a
-    module-scope fixture body. The function still mutates the
-    filesystem — that is unavoidable for an integration test — but the
-    fixture body itself only calls this helper and yields.
+    module-scope fixture body. Returns the placeholder-decide result so
+    the refusal can be asserted.
     """
+    from scitex_agentic_journal._review import persist_review
+
     bundle_dir = home / "bundle"
     bundle_dir.mkdir()
     _write_gate1_record(home, bundle_dir)
@@ -106,6 +139,9 @@ def _run_full_pipeline(home: Path) -> None:
     )
     assert review_result.exit_code == 0, review_result.output
 
+    placeholder_decide = runner.invoke(cli_main, ["decide", SUBMISSION_ID])
+
+    persist_review(_live_review_record(), home=home, now=FIXED_NOW)
     decide_result = runner.invoke(cli_main, ["decide", SUBMISSION_ID])
     assert decide_result.exit_code == 0, decide_result.output
 
@@ -120,6 +156,10 @@ def _run_full_pipeline(home: Path) -> None:
         cli_main, ["publish", SUBMISSION_ID, "--yes"]
     )
     assert publish_result.exit_code == 0, publish_result.output
+    return {
+        "exit_code": placeholder_decide.exit_code,
+        "output": placeholder_decide.output,
+    }
 
 
 @pytest.fixture(scope="module")
@@ -135,7 +175,9 @@ def pipeline_home(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Path]:
     original = os.environ.get("SCITEX_AGENTIC_JOURNAL_HOME")
     os.environ["SCITEX_AGENTIC_JOURNAL_HOME"] = str(home)
     try:
-        _run_full_pipeline(home)
+        (home / "placeholder-decide.json").write_text(
+            json.dumps(_run_full_pipeline(home)), encoding="utf-8"
+        )
         yield home
     finally:
         if original is None:
@@ -216,14 +258,22 @@ def test_review_json_carries_sha256_content_hash(pipeline_home: Path) -> None:
     assert content_hash.startswith("sha256:")
 
 
-def test_decision_json_verdict_is_accept_for_local_adapter_path(
+def test_decide_refuses_the_local_placeholder_review(pipeline_home: Path) -> None:
+    """Design 01, defect 1: a placeholder review must never yield a decision."""
+    # Arrange
+    path = pipeline_home / "placeholder-decide.json"
+    result = json.loads(path.read_text(encoding="utf-8"))
+    # Act
+    refused = result["exit_code"] != 0 and "real review" in result["output"]
+    # Assert
+    assert refused, result
+
+
+def test_decision_json_verdict_is_accept_for_a_clean_live_review(
     pipeline_home: Path,
 ) -> None:
-    """The deterministic LocalAdapter produces a clean record — every
-    methodology severity is NONE, repro passes, ≥1 green claim, novelty
-    is below the revise threshold — so v1 rules MUST emit ``accept``.
-    A future tweak to the LocalAdapter that would break this is a real
-    regression and must be caught here.
+    """A clean live review (repro passes, one green claim, low novelty
+    overlap, no methodology criticism) must make v1 rules emit ``accept``.
     """
     # Arrange
     path = _submission_dir(pipeline_home) / "decision.json"

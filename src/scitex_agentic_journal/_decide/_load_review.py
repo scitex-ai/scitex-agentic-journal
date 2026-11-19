@@ -113,6 +113,9 @@ def _record_from_jsonable(block: dict) -> ReviewRecord:
         submission_id=str(block["submission_id"]),
         adapter=str(block["adapter"]),
         adapter_version=str(block["adapter_version"]),
+        # Records written before 0.2.0 carry no mode: they stay "unknown",
+        # and the decision engine refuses them.
+        adapter_mode=str(block.get("adapter_mode", "unknown")),
         prompts_version=str(block["prompts_version"]),
         rubric_version=str(block.get("rubric_version", ARA_RUBRIC_VERSION)),
         reproducibility=ReproducibilityReport(

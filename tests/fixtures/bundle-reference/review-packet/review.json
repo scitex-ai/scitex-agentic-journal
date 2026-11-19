@@ -1,0 +1,392 @@
+{
+ "schema": "scitex-live-paper.review-packet",
+ "schema_version": "1.2.0",
+ "scope": "Registered claims only. Text that is not a registered claim is not assessed: it may or may not be supported; no graph connects it.",
+ "provider": {
+  "name": "reference",
+  "version": "1.0"
+ },
+ "evidence_report_version": "1.2.0",
+ "project_root": "/scratch/ywatanabe/saj/refwork/project",
+ "states": {
+  "not_supported": "Not supported",
+  "not_checkable": "Registered, not checkable",
+  "no_evidence_graph": "No evidence graph",
+  "supported": "Supported by evidence"
+ },
+ "symbols": {
+  "not_supported": "\u2717",
+  "not_checkable": "?",
+  "no_evidence_graph": "\u2205",
+  "supported": "\u2713"
+ },
+ "counts": {
+  "not_supported": 2,
+  "not_checkable": 1,
+  "no_evidence_graph": 1,
+  "supported": 1
+ },
+ "needs_inspection": [
+  {
+   "claim_id": "n_rows",
+   "location": {
+    "file": "paper/paper.tex",
+    "line": 3,
+    "label": "paper/paper.tex:L3"
+   },
+   "claim_type": "value",
+   "stated_text": "n = 3",
+   "stated_value": 3,
+   "state": "not_supported",
+   "label": "Not supported",
+   "symbol": "\u2717",
+   "reason": "value in source differs: 2 in source vs 3 stated",
+   "needs_inspection": true,
+   "source": {
+    "file": "results/results.json",
+    "locator": "/n_rows",
+    "value": 2,
+    "value_reported": true
+   },
+   "details": [
+    "/n_rows: 2 != 3"
+   ],
+   "provider_status": {
+    "name": "NOT_SUPPORTED",
+    "code": null
+   },
+   "graph": {
+    "nodes": [
+     {
+      "id": "p",
+      "kind": "process",
+      "label": "scripts/compute.py"
+     },
+     {
+      "id": "i0",
+      "kind": "input",
+      "label": "data/input.csv",
+      "hash": "2a2b86e74ffd5e6a9b75e52a105cf9d02920837179f8e8961aa15411d380f7a3"
+     },
+     {
+      "id": "o",
+      "kind": "output",
+      "label": "results/results.json",
+      "hash": "2ae7bbcf189417ac1dd0ae7664b4972e9c1adc5ad9eed2a14d0597a9f84e9de7",
+      "failure": {
+       "kind": "mismatched",
+       "detail": "2 in source vs 3 stated"
+      }
+     },
+     {
+      "id": "c",
+      "kind": "claim",
+      "label": "n_rows"
+     }
+    ],
+    "edges": [
+     {
+      "source": "i0",
+      "target": "p",
+      "kind": "input"
+     },
+     {
+      "source": "p",
+      "target": "o",
+      "kind": "output"
+     },
+     {
+      "source": "o",
+      "target": "c",
+      "kind": "supports"
+     }
+    ],
+    "summary": "1 process, 2 file(s)"
+   },
+   "failing_nodes": [
+    {
+     "id": "o",
+     "kind": "output",
+     "label": "results/results.json",
+     "failure": "mismatched",
+     "failure_label": "Mismatched",
+     "detail": "2 in source vs 3 stated"
+    }
+   ],
+   "graph_error": null,
+   "graph_url": null
+  },
+  {
+   "claim_id": "cohort2",
+   "location": {
+    "file": "paper/paper.tex",
+    "line": 6,
+    "label": "paper/paper.tex:L6"
+   },
+   "claim_type": "value",
+   "stated_text": "60 units",
+   "stated_value": 60,
+   "state": "not_supported",
+   "label": "Not supported",
+   "symbol": "\u2717",
+   "reason": "source changed after the run",
+   "needs_inspection": true,
+   "source": {
+    "file": "results/results2.json",
+    "locator": "/sum_x",
+    "value": 60,
+    "value_reported": true
+   },
+   "details": [
+    "hash changed: data/input2.csv"
+   ],
+   "provider_status": {
+    "name": "NOT_SUPPORTED",
+    "code": null
+   },
+   "graph": {
+    "nodes": [
+     {
+      "id": "p",
+      "kind": "process",
+      "label": "scripts/compute.py"
+     },
+     {
+      "id": "i0",
+      "kind": "input",
+      "label": "data/input2.csv",
+      "hash": "e5012e3ba4ab8b3fc513ad3173b8f8630d9eaf2d00fb7fdbb611cf79cac77721",
+      "failure": {
+       "kind": "changed",
+       "detail": "hash differs from the recorded run"
+      }
+     },
+     {
+      "id": "o",
+      "kind": "output",
+      "label": "results/results2.json",
+      "hash": "90afe453bb85699424bf48a76ddcf8e46df798b859072c526464140501612cce"
+     },
+     {
+      "id": "c",
+      "kind": "claim",
+      "label": "cohort2"
+     }
+    ],
+    "edges": [
+     {
+      "source": "i0",
+      "target": "p",
+      "kind": "input"
+     },
+     {
+      "source": "p",
+      "target": "o",
+      "kind": "output"
+     },
+     {
+      "source": "o",
+      "target": "c",
+      "kind": "supports"
+     }
+    ],
+    "summary": "1 process, 2 file(s)"
+   },
+   "failing_nodes": [
+    {
+     "id": "i0",
+     "kind": "input",
+     "label": "data/input2.csv",
+     "failure": "changed",
+     "failure_label": "Changed",
+     "detail": "hash differs from the recorded run"
+    }
+   ],
+   "graph_error": null,
+   "graph_url": null
+  },
+  {
+   "claim_id": "accuracy",
+   "location": {
+    "file": "paper/paper.tex",
+    "line": 4,
+    "label": "paper/paper.tex:L4"
+   },
+   "claim_type": "value",
+   "stated_text": "0.77",
+   "stated_value": 0.77,
+   "state": "not_checkable",
+   "label": "Registered, not checkable",
+   "symbol": "?",
+   "reason": "no locator, value not checked",
+   "needs_inspection": true,
+   "source": {
+    "file": "results/results.json",
+    "locator": null,
+    "value": null,
+    "value_reported": false
+   },
+   "details": [],
+   "provider_status": {
+    "name": "NOT_CHECKABLE",
+    "code": null
+   },
+   "graph": {
+    "nodes": [
+     {
+      "id": "p",
+      "kind": "process",
+      "label": "scripts/compute.py"
+     },
+     {
+      "id": "i0",
+      "kind": "input",
+      "label": "data/input.csv",
+      "hash": "2a2b86e74ffd5e6a9b75e52a105cf9d02920837179f8e8961aa15411d380f7a3"
+     },
+     {
+      "id": "o",
+      "kind": "output",
+      "label": "results/results.json",
+      "hash": "2ae7bbcf189417ac1dd0ae7664b4972e9c1adc5ad9eed2a14d0597a9f84e9de7"
+     },
+     {
+      "id": "c",
+      "kind": "claim",
+      "label": "accuracy"
+     }
+    ],
+    "edges": [
+     {
+      "source": "i0",
+      "target": "p",
+      "kind": "input"
+     },
+     {
+      "source": "p",
+      "target": "o",
+      "kind": "output"
+     },
+     {
+      "source": "o",
+      "target": "c",
+      "kind": "supports"
+     }
+    ],
+    "summary": "1 process, 2 file(s)"
+   },
+   "failing_nodes": [],
+   "graph_error": null,
+   "graph_url": null
+  },
+  {
+   "claim_id": "calib",
+   "location": {
+    "file": "paper/paper.tex",
+    "line": 5,
+    "label": "paper/paper.tex:L5"
+   },
+   "claim_type": "value",
+   "stated_text": "k = 5",
+   "stated_value": 5,
+   "state": "no_evidence_graph",
+   "label": "No evidence graph",
+   "symbol": "\u2205",
+   "reason": "no evidence graph: the source has no recorded computation behind it",
+   "needs_inspection": true,
+   "source": {
+    "file": "paper/manual.json",
+    "locator": "/k",
+    "value": 5,
+    "value_reported": true
+   },
+   "details": [
+    "no run recorded paper/manual.json as an output"
+   ],
+   "provider_status": {
+    "name": "NO_EVIDENCE_GRAPH",
+    "code": null
+   },
+   "graph": null,
+   "failing_nodes": [],
+   "graph_error": "no recorded run produced the source",
+   "graph_url": null
+  }
+ ],
+ "supported": [
+  {
+   "claim_id": "auc",
+   "location": {
+    "file": "paper/paper.tex",
+    "line": 2,
+    "label": "paper/paper.tex:L2"
+   },
+   "claim_type": "value",
+   "stated_text": "AUC = 0.91",
+   "stated_value": 0.91,
+   "state": "supported",
+   "label": "Supported by evidence",
+   "symbol": "\u2713",
+   "reason": "value and sources check out against the recorded run",
+   "needs_inspection": false,
+   "source": {
+    "file": "results/results.json",
+    "locator": "/auc",
+    "value": 0.91,
+    "value_reported": true
+   },
+   "details": [],
+   "provider_status": {
+    "name": "SUPPORTED",
+    "code": null
+   },
+   "graph": {
+    "nodes": [
+     {
+      "id": "p",
+      "kind": "process",
+      "label": "scripts/compute.py"
+     },
+     {
+      "id": "i0",
+      "kind": "input",
+      "label": "data/input.csv",
+      "hash": "2a2b86e74ffd5e6a9b75e52a105cf9d02920837179f8e8961aa15411d380f7a3"
+     },
+     {
+      "id": "o",
+      "kind": "output",
+      "label": "results/results.json",
+      "hash": "2ae7bbcf189417ac1dd0ae7664b4972e9c1adc5ad9eed2a14d0597a9f84e9de7"
+     },
+     {
+      "id": "c",
+      "kind": "claim",
+      "label": "auc"
+     }
+    ],
+    "edges": [
+     {
+      "source": "i0",
+      "target": "p",
+      "kind": "input"
+     },
+     {
+      "source": "p",
+      "target": "o",
+      "kind": "output"
+     },
+     {
+      "source": "o",
+      "target": "c",
+      "kind": "supports"
+     }
+    ],
+    "summary": "1 process, 2 file(s)"
+   },
+   "failing_nodes": [],
+   "graph_error": null,
+   "graph_url": null
+  }
+ ]
+}

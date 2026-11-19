@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scitex.ai/schemas/scitex-agentic-journal/review-source/1.0",
+  "title": "scitex-agentic-journal review source",
+  "description": "Who or what produced an ingested review (design §7a). The journal records how the identity was established (attestation); a source's own statements are stored as declarations, never as verified facts.",
+  "type": "object",
+  "required": ["kind", "identity", "declared_independence", "disclosure"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": {"enum": ["human", "external-service", "journal-panel"]},
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "orcid": {"type": ["string", "null"], "pattern": "^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$"},
+        "name": {"type": ["string", "null"]},
+        "service": {"type": ["string", "null"]},
+        "service_version": {"type": ["string", "null"]},
+        "model": {
+          "type": ["object", "null"],
+          "required": ["provider", "name"],
+          "additionalProperties": false,
+          "properties": {
+            "provider": {"type": "string", "minLength": 1},
+            "name": {"type": "string", "minLength": 1},
+            "served_version": {"type": ["string", "null"]}
+          }
+        }
+      }
+    },
+    "declared_independence": {
+      "type": "object",
+      "required": ["not_an_author", "saw_author_materials"],
+      "additionalProperties": false,
+      "properties": {
+        "not_an_author": {"type": "boolean"},
+        "saw_author_materials": {"type": "boolean"},
+        "conflicts": {"type": ["string", "null"]}
+      }
+    },
+    "disclosure": {"enum": ["blind", "model-family", "open"]}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"kind": {"const": "human"}}},
+      "then": {"properties": {"identity": {"required": ["orcid"], "properties": {"orcid": {"type": "string"}}}}}
+    },
+    {
+      "if": {"properties": {"kind": {"const": "external-service"}}},
+      "then": {"properties": {"identity": {"required": ["service"], "properties": {"service": {"type": "string", "minLength": 1}}}}}
+    }
+  ]
+}

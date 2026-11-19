@@ -43,6 +43,7 @@ def register_decide_command(main_group: click.Group) -> None:
         from scitex_agentic_journal._decide import (
             DecisionEngine,
             DecisionLoadError,
+            NoRealReviewError,
             RulesLoadError,
             load_review_record,
             persist_decision,
@@ -56,7 +57,10 @@ def register_decide_command(main_group: click.Group) -> None:
             engine = DecisionEngine()
         except RulesLoadError as e:
             raise click.ClickException(str(e)) from e
-        decision = engine.decide(record)
+        try:
+            decision = engine.decide(record)
+        except NoRealReviewError as e:
+            raise click.ClickException(str(e)) from e
         persisted = persist_decision(decision)
         click.echo(
             f"DECISION submission_id={persisted.submission_id} "

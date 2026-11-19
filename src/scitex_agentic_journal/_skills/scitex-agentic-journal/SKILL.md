@@ -50,6 +50,7 @@ sub-package only exposes the standalone import path during alpha.
 - [14_publish-handoff.md](14_publish-handoff.md) — gate-4 persistent ID (sandbox → Zenodo → JaLC) + hand-off to scitex-live-paper
 - [15_python-api-detailed.md](15_python-api-detailed.md) — deeper Python-surface walk-through beyond 03_python-api.md
 - [16_demo-and-mounted-archive.md](16_demo-and-mounted-archive.md) — distinguish demo records, mounted archive context and provider integration
+- [17_contract-submission.md](17_contract-submission.md) — 0.2.0 contract path: bundle validate/submit, admission checks, preprint snapshot, review ingestion from any source
 
 ### Configuration & state (20–29)
 

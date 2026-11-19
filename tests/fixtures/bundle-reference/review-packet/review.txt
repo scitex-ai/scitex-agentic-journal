@@ -1,0 +1,37 @@
+Registered-claim evidence review — provider reference 1.0
+schema scitex-live-paper.review-packet v1.2.0
+Registered claims only. Text that is not a registered claim is not assessed: it may or may not be supported; no graph connects it.
+Counts: Not supported: 2, Registered, not checkable: 1, No evidence graph: 1, Supported by evidence: 1
+
+== NEEDS INSPECTION (4) ==
+- ✗ Not supported: n_rows @ paper/paper.tex:3 "n = 3" -- value in source differs: 2 in source vs 3 stated [provider: NOT_SUPPORTED]
+    source: results/results.json locator: /n_rows
+    stated value: 3  source value: 2
+    evidence broke at: ⚠ MISMATCHED output:results/results.json -- 2 in source vs 3 stated
+    input:data/input.csv -> process:scripts/compute.py
+    process:scripts/compute.py -> output:results/results.json [⚠ MISMATCHED]
+    output:results/results.json [⚠ MISMATCHED] -> claim:n_rows
+- ✗ Not supported: cohort2 @ paper/paper.tex:6 "60 units" -- source changed after the run [provider: NOT_SUPPORTED]
+    source: results/results2.json locator: /sum_x
+    stated value: 60  source value: 60
+    evidence broke at: ⚠ CHANGED input:data/input2.csv -- hash differs from the recorded run
+    input:data/input2.csv [⚠ CHANGED] -> process:scripts/compute.py
+    process:scripts/compute.py -> output:results/results2.json
+    output:results/results2.json -> claim:cohort2
+- ? Registered, not checkable: accuracy @ paper/paper.tex:4 "0.77" -- no locator, value not checked [provider: NOT_CHECKABLE]
+    source: results/results.json locator: None
+    input:data/input.csv -> process:scripts/compute.py
+    process:scripts/compute.py -> output:results/results.json
+    output:results/results.json -> claim:accuracy
+- ∅ No evidence graph: calib @ paper/paper.tex:5 "k = 5" -- no evidence graph: the source has no recorded computation behind it [provider: NO_EVIDENCE_GRAPH]
+    source: paper/manual.json locator: /k
+    stated value: 5  source value: 5
+    minimal graph: none (no recorded run produced the source)
+
+== SUPPORTED (1) ==
+- ✓ Supported by evidence: auc @ paper/paper.tex:2 "AUC = 0.91" -- value and sources check out against the recorded run [provider: SUPPORTED]
+    source: results/results.json locator: /auc
+    stated value: 0.91  source value: 0.91
+    input:data/input.csv -> process:scripts/compute.py
+    process:scripts/compute.py -> output:results/results.json
+    output:results/results.json -> claim:auc

@@ -38,7 +38,8 @@ def _review(
 ) -> ReviewRecord:
     return ReviewRecord(
         submission_id=submission_id,
-        adapter="local-deterministic",
+        adapter="fixture-live-reviewer",
+        adapter_mode="live",
         adapter_version="0.1.0",
         prompts_version="v1",
         rubric_version=ARA_RUBRIC_VERSION,
