@@ -5,7 +5,9 @@ Scope: the smallest implementable design for
 submission → review assignment → review → decision, in which reviewers
 are independent of the authors' agents and every verdict points at a
 registered claim. Findings are tracked as issues on the authors' git host
-(§12).
+(§12). It covers both stages, preprint and then journal, with their gates and
+DOIs (§13), and how transparency answers the "predatory journal" criticism
+(§14).
 
 ## 1. Where the repo stands (audit of `develop` @ 3824d01, v0.1.0a4)
 
@@ -337,6 +339,9 @@ Same schemas for both; only `reviewer.kind` and identity fields differ.
 | D7 | Reviewer disclosure on public issues (§12.5) | `model-family` for agents, `blind` for humans; `open` per submission opt-in |
 | D8 | Default issue venue (§12.6) | Author repo when the journal's app is installed there; otherwise a private journal-owned review repo |
 | D9 | GitHub credential type | GitHub App (per-repo install, scoped `issues:write` + `metadata:read`) over a personal token |
+| D10 | Contract for the preprint admission lint (§13.1): the exact scitex-dev command and the JSON output it emits | Pin it like the live-paper schemas. Whether scitex-dev publishes a machine-readable report schema is not yet confirmed; if it does not, ask scitex-dev for one |
+| D11 | Acceptance gate strictness: are claims that are `not_checkable` or have `no_evidence_graph` allowed as editor-acknowledged exceptions, or must every claim be `supported`? | Allow listed exceptions with reasons. They are shown on the article page |
+| D12 | Should the review record get its own DOI? | Yes, once a DOI backend is configured |
 
 ## 12. Review findings as hosted issues
 
@@ -484,3 +489,96 @@ contract (Gitea and Forgejo share an API). Adapters are selected by
 `repository.host` and registered by name, like the existing reviewer-adapter
 registry. A journal without any host adapter configured still works via
 `local`.
+
+## 13. Two stages: preprint, then journal
+
+The venue has two stages over one research repository, each with its own
+gate. Sections 3–12 describe the journal stage; the preprint stage reuses the
+same bundle and records.
+
+```
+research project (git repo, own semver, e.g. v1.1.3)
+   │  author tags a snapshot
+   ▼
+PREPRINT  snapshot v1.1.0 ── admission gate: "SciTeX format" ──▶ public preprint
+   │      (Live Paper bundle: executable, UI over PDF, Clew graph; version DOI)
+   │  author requests journal review of a preprint snapshot
+   ▼
+JOURNAL   review rounds as issues (§12), AI reviewers + other users
+   │      ── acceptance gate: computational verification + editor decision ──▶
+   ▼
+PUBLICATION  v1.0.0 (own version line; article DOI)
+```
+
+### 13.1 Gates
+
+| Gate | Passes when | Checked by |
+|---|---|---|
+| Preprint admission | The snapshot passes the SciTeX research lint (scitex-dev, `project-type: research`), and the bundle validates (§3) | The journal re-runs the lint on the snapshot itself (sealed SAC run, pinned scitex-dev version). An author-supplied lint report is not trusted. The lint's output becomes a pinned contract like the live-paper schemas (D10) |
+| Journal acceptance | (a) **Computational verification:** every registered claim in the accepted snapshot's evidence report is `supported`, or is listed as an editor-acknowledged exception with a reason. (b) **Review judgement:** the editor's decision is `accept` and no `critical` issue is open | (a) is mechanical, from the evidence report. (b) is the editor's recorded decision (§8) |
+
+Admission is not acceptance: a preprint carries no claim of peer review, and
+its page says so.
+
+### 13.2 Versions, snapshots, DOIs
+
+- **Project version** (`v1.1.3`): the authors' own; the journal only records
+  it.
+- **Preprint version** (`v1.1.0`): an immutable snapshot, meaning a tag plus a
+  commit SHA, and the bundle hash (§3). Each revision during review is a new
+  preprint snapshot (`v1.2.0`, …) linked by `supersedes`. Each snapshot gets a
+  **version DOI** under one **concept DOI** for the preprint.
+- **Publication version** (`v1.0.0`): the journal's own version line for the
+  accepted article. Corrections are `v1.0.1`, … The record maps each
+  publication version to the exact preprint snapshot it was accepted from.
+- **Review record**: the round mirrors (§12.8), editor summaries and decision
+  are published with the article. Optionally they get their own DOI, related
+  to the article as a review of it.
+- **DOI minting is an adapter.** It reuses the existing `IdMinter` protocol in
+  `_publish` (Zenodo, JaLC and Crossref backends, plus a sandbox).
+  - Backends are selected by configuration, and `none` is valid, so DOIs are
+    not a hard dependency.
+  - Minting happens only after the gate passes.
+  - Metadata carries the relations: version of the concept DOI, preprint →
+    publication, and review → article.
+  - Credentials are held by the journal service only, as in §12.1.
+
+## 14. Transparency as the answer to "predatory journal"
+
+A predatory venue is opaque: unknown reviewers, no record, acceptance
+uncorrelated with scrutiny. This venue makes every step inspectable:
+
+1. **Public review threads.** Once the reviewed snapshot is a public
+   preprint, its issues are public (§12.6). Confidential review is an explicit
+   author choice and is recorded. The full thread is mirrored into the
+   published record, including rejected and unresolved findings.
+2. **Disclosed reviewer provenance.** Every article lists, per reviewer slot:
+   - the kind (agent or human);
+   - the model family under the D7 policy;
+   - the SAC version, spec, prompt and outcome hashes;
+   - which rounds the slot took part in.
+   It also states `distinct_models` and any correlated pairs. The editor's
+   identity and decision reason are published.
+3. **Stated independence guarantees** (§6). Reviewers are sealed, blind to
+   the authors' agents and to each other, and are not among the producers.
+   Failures are recorded, never silently replaced.
+4. **Two separate verdicts, never merged.** Each article page shows them
+   side by side:
+   - **Computational verification (Clew / evidence report).** For each
+     registered claim, it checks whether the stated value follows from the
+     recorded inputs and code by hash-checked provenance. It does not judge
+     whether the method fits the question, whether the result generalises,
+     or whether it matters.
+   - **Scientific validity (review judgement).** Reviewers (AI or human)
+     and the editor judge method, interpretation, scope and significance.
+     These are opinions with reasons, attached to claims and graph nodes.
+
+   A green verification is not an endorsement. A positive review does not
+   repair a claim whose evidence is not supported. Text that is not a
+   registered claim gets neither verdict.
+5. **Decisions cite evidence.** Every decision references editor-summary
+   items and issue links. Reviewer and editor records are append-only, with
+   hashes.
+
+The article, preprint and review pages render these records directly. There
+is no separate "trust badge" that could drift from them.
