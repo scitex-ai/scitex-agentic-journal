@@ -236,8 +236,8 @@ Downstream consumer:
 ## Status
 
 0.2.0 adds the contract-based path for the stages before review:
-`bundle validate|submit`, `admission run|show`, `preprint create|show` and
-review ingestion from any source (`reviews file|list`). See
+`bundle validate|submit`, `admission evaluate|show`, `preprint create|show` and
+review ingestion from any source (`reviews ingest|list`). See
 [the design](docs/design/01_contract-submission-and-independent-review.md)
 and the CHANGELOG. The legacy `submit/review/decide` intake remains; `decide`
 refuses placeholder reviews.

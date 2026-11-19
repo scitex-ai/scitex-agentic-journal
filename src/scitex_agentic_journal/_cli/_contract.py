@@ -4,11 +4,11 @@ The stages before review (design 01 §0, §10):
 
     bundle validate DIR     check a submission bundle, print every finding
     bundle submit DIR       record a valid bundle, print its submission id
-    admission run ID        run the admission checks, record the outcome
+    admission evaluate ID   run the admission checks, record the outcome
     admission show ID       print the latest admission record
     preprint create ID V    snapshot an admitted submission as preprint V
     preprint show ID        print the preprint record
-    reviews file ID R S     ingest a review R from source S (any reviewer)
+    reviews ingest ID R S   ingest a review R from source S (any reviewer)
     reviews list ID         list ingested reviews
 
 Every command accepts ``--json`` for machine-readable output.
@@ -104,10 +104,10 @@ def register_contract_commands(main_group: click.Group) -> None:
     def admission() -> None:
         """Run and inspect admission checks (identity, SciTeX form, evidence)."""
 
-    @admission.command(name="run")
+    @admission.command(name="evaluate")
     @click.argument("submission_id")
     @_json_opt
-    def admission_run(submission_id: str, as_json: bool) -> None:
+    def admission_evaluate(submission_id: str, as_json: bool) -> None:
         """Run every admission check for SUBMISSION_ID; exit 1 if not admitted.
 
         Contacts the ORCID registry, clones the declared repository and runs
@@ -115,7 +115,7 @@ def register_contract_commands(main_group: click.Group) -> None:
 
         Example:
 
-          $ scitex-agentic-journal admission run aj-0123456789abcdef
+          $ scitex-agentic-journal admission evaluate aj-0123456789abcdef
         """
         from scitex_agentic_journal._admission import run_admission
         from scitex_agentic_journal._records import RecordError
@@ -162,13 +162,20 @@ def register_contract_commands(main_group: click.Group) -> None:
     @preprint.command(name="create")
     @click.argument("submission_id")
     @click.argument("version")
+    @click.option("--dry-run", is_flag=True, help="Show the record without writing it.")
+    @click.option("--yes", "-y", "assume_yes", is_flag=True, help="Do not ask for confirmation.")
     @_json_opt
-    def preprint_create(submission_id: str, version: str, as_json: bool) -> None:
+    def preprint_create(
+        submission_id: str, version: str, dry_run: bool, assume_yes: bool, as_json: bool
+    ) -> None:
         """Snapshot admitted SUBMISSION_ID as preprint VERSION (e.g. v1.1.0).
+
+        A preprint record is immutable; use --dry-run to inspect it first.
 
         Example:
 
-          $ scitex-agentic-journal preprint create aj-0123456789abcdef v1.1.0
+          $ scitex-agentic-journal preprint create aj-0123456789abcdef v1.1.0 --dry-run
+          $ scitex-agentic-journal preprint create aj-0123456789abcdef v1.1.0 --yes
         """
         from scitex_agentic_journal._preprint import (
             PreprintRefusedError,
@@ -176,14 +183,20 @@ def register_contract_commands(main_group: click.Group) -> None:
         )
         from scitex_agentic_journal._records import RecordError
 
+        if not dry_run and not assume_yes:
+            raise click.ClickException(
+                f"refusing to create immutable preprint {version} of {submission_id} "
+                "without --yes; inspect it first with --dry-run"
+            )
         try:
-            rec = create_preprint(submission_id, version)
+            rec = create_preprint(submission_id, version, dry_run=dry_run)
         except (PreprintRefusedError, RecordError) as e:
             raise _fail(e) from e
         _emit(
             rec,
             as_json,
-            f"PREPRINT submission_id={submission_id} version={rec['preprint_version']} "
+            f"{'PLAN ' if dry_run else ''}PREPRINT submission_id={submission_id} "
+            f"version={rec['preprint_version']} "
             f"internal_id={rec['internal_id']} doi_status={rec['doi_status']}",
         )
 
@@ -215,7 +228,7 @@ def register_contract_commands(main_group: click.Group) -> None:
     def reviews() -> None:
         """Ingest reviews from any source (external services, humans, users)."""
 
-    @reviews.command(name="file")
+    @reviews.command(name="ingest")
     @click.argument("submission_id")
     @click.argument(
         "report_path", type=click.Path(exists=True, dir_okay=False, path_type=Path)
@@ -233,7 +246,7 @@ def register_contract_commands(main_group: click.Group) -> None:
         help="How the reviewer's identity reached the journal.",
     )
     @_json_opt
-    def reviews_file(
+    def reviews_ingest(
         submission_id: str,
         report_path: Path,
         source_path: Path,
@@ -247,7 +260,7 @@ def register_contract_commands(main_group: click.Group) -> None:
 
         Example:
 
-          $ scitex-agentic-journal reviews file aj-0123456789abcdef report.json source.json
+          $ scitex-agentic-journal reviews ingest aj-0123456789abcdef report.json source.json
         """
         from scitex_agentic_journal._ingest import ReviewRejectedError, file_review
         from scitex_agentic_journal._records import RecordError

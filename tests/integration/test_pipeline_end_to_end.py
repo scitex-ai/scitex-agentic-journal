@@ -119,13 +119,13 @@ def _live_review_record():
     )
 
 
-def _run_full_pipeline(home: Path) -> dict:
+def _run_full_pipeline(home: Path) -> None:
     """Drive every CLI stage of the loop against ``home``.
 
     Kept as a free function (not inlined into the fixture body) because
     the audit's STX-TQ004 rule forbids state-mutating verbs inside a
-    module-scope fixture body. Returns the placeholder-decide result so
-    the refusal can be asserted.
+    module-scope fixture body. The placeholder-decide result is written to
+    ``placeholder-decide.json`` so the refusal can be asserted.
     """
     from scitex_agentic_journal._review import persist_review
 
@@ -156,10 +156,12 @@ def _run_full_pipeline(home: Path) -> dict:
         cli_main, ["publish", SUBMISSION_ID, "--yes"]
     )
     assert publish_result.exit_code == 0, publish_result.output
-    return {
-        "exit_code": placeholder_decide.exit_code,
-        "output": placeholder_decide.output,
-    }
+    (home / "placeholder-decide.json").write_text(
+        json.dumps(
+            {"exit_code": placeholder_decide.exit_code, "output": placeholder_decide.output}
+        ),
+        encoding="utf-8",
+    )
 
 
 @pytest.fixture(scope="module")
@@ -175,9 +177,7 @@ def pipeline_home(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Path]:
     original = os.environ.get("SCITEX_AGENTIC_JOURNAL_HOME")
     os.environ["SCITEX_AGENTIC_JOURNAL_HOME"] = str(home)
     try:
-        (home / "placeholder-decide.json").write_text(
-            json.dumps(_run_full_pipeline(home)), encoding="utf-8"
-        )
+        _run_full_pipeline(home)
         yield home
     finally:
         if original is None:

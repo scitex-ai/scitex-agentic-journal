@@ -13,7 +13,7 @@ It sits **alongside** the legacy `submit/review/decide` intake.
 ## Flow
 
 ```
-bundle validate DIR  →  bundle submit DIR  →  admission run ID  →  preprint create ID vX.Y.Z  →  reviews file ID report.json source.json
+bundle validate DIR  →  bundle submit DIR  →  admission evaluate ID  →  preprint create ID vX.Y.Z --yes  →  reviews ingest ID report.json source.json
 ```
 
 Every command takes `--json`. Records go to
@@ -67,7 +67,7 @@ canonical manifest.
 
 ## Review ingestion (any source)
 
-`reviews file ID report.json source.json --channel orcid-login|service-key|operator-cli|self-declared`
+`reviews ingest ID report.json source.json --channel orcid-login|service-key|operator-cli|self-declared`
 
 - **report**: `_contracts/schemas/review-report.schema.json`. It holds:
   - `claim_findings[]`, each with `claim_id`, `verdict`, `graph_nodes`,

@@ -10,7 +10,7 @@ from scitex_agentic_journal._preprint import (
     create_preprint,
     load_preprint,
 )
-
+from scitex_agentic_journal._records import RecordError
 from tests.scitex_agentic_journal._contract_helpers import (
     OrcidServer,
     copy_reference_bundle,
@@ -99,4 +99,15 @@ def test_malformed_version_is_refused(preprint):
     call = lambda: create_preprint(sid, "latest", home=home)
     # Assert
     with pytest.raises(PreprintRefusedError, match="MAJOR.MINOR.PATCH"):
+        call()
+
+
+def test_dry_run_builds_the_record_without_writing_it(tmp_path):
+    # Arrange
+    sid, home = _submitted(tmp_path)
+    create_preprint(sid, "v2.0.0", home=home, dry_run=True)
+    # Act
+    call = lambda: load_preprint(sid, home=home)  # noqa: E731
+    # Assert
+    with pytest.raises(RecordError, match="record not found"):
         call()

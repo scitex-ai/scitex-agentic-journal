@@ -1,7 +1,7 @@
 """Shared helpers for the contract-based path tests.
 
-* The reference bundle under ``tests/fixtures/bundle-reference`` is real
-  producer output (see ``tests/fixtures/make_reference_bundle.py``).
+* The reference bundle under ``tests/scitex_agentic_journal/fixtures/bundle-reference``
+  is real producer output (see ``fixtures/make_reference_bundle.py`` there).
 * ``make_research_repo`` builds a real git repository holding a small
   SciTeX research project; ``point_bundle_at`` rewrites a bundle copy's
   manifest to it (the manifest is not part of ``files``, so the bundle stays
@@ -20,7 +20,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 REPO_TESTS = Path(__file__).resolve().parents[1]
-REFERENCE_BUNDLE = REPO_TESTS / "fixtures" / "bundle-reference"
+REFERENCE_BUNDLE = REPO_TESTS / "scitex_agentic_journal" / "fixtures" / "bundle-reference"
 ORCID_FIXTURES = REPO_TESTS / "scitex_agentic_journal" / "_gate1" / "_fixtures"
 TEST_ORCID = "0000-0002-1825-0097"
 

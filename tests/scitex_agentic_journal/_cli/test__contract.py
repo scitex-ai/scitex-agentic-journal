@@ -69,7 +69,7 @@ def test_preprint_create_refuses_an_unadmitted_submission(run):
         "submission_id"
     ]
     # Act
-    result = run("preprint", "create", sid, "v1.0.0")
+    result = run("preprint", "create", sid, "v1.0.0", "--yes")
     # Assert
     assert "no admission record" in result.output
 

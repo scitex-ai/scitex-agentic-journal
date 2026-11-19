@@ -1,4 +1,4 @@
-"""Regenerate ``tests/fixtures/bundle-reference/`` from real producers.
+"""Regenerate ``tests/scitex_agentic_journal/fixtures/bundle-reference/`` from real producers.
 
 The fixture is NOT hand-written: the project, its evidence report and its
 review packet are produced by scitex-live-paper's own reference evidence
@@ -8,12 +8,12 @@ then reads the static files and never imports scitex-live-paper.
 Run in an environment with scitex-live-paper installed from commit
 ``LIVE_PAPER_COMMIT`` (the commit the vendored schemas are pinned to)::
 
-    python tests/fixtures/make_reference_bundle.py \
+    python tests/scitex_agentic_journal/fixtures/make_reference_bundle.py \
         --provider-dir <dir holding _reference_provider.py from that commit,
                         tests/scitex_live_paper/evidence/> \
         --pdf <that commit: tests/scitex_live_paper/fixtures/bundle-min/manuscript.pdf> \
         --workdir <scratch dir> \
-        --out tests/fixtures/bundle-reference
+        --out tests/scitex_agentic_journal/fixtures/bundle-reference
 """
 
 from __future__ import annotations

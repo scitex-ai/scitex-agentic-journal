@@ -50,8 +50,12 @@ def create_preprint(
     *,
     home: Path | None = None,
     now: datetime | None = None,
+    dry_run: bool = False,
 ) -> dict[str, Any]:
-    """Snapshot an admitted submission as preprint ``version``; idempotent."""
+    """Snapshot an admitted submission as preprint ``version``; idempotent.
+
+    With ``dry_run`` the record is built and returned but not written.
+    """
     if not _VERSION_RE.match(version):
         raise PreprintRefusedError(
             f"version {version!r} is not MAJOR.MINOR.PATCH (optionally v-prefixed)"
@@ -135,7 +139,8 @@ def create_preprint(
         },
         "created_at": utcnow_iso(created),
     }
-    write_record(path, payload)
+    if not dry_run:
+        write_record(path, payload)
     return payload
 
 

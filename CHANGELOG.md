@@ -21,7 +21,7 @@ alongside the legacy intake, which keeps working.
   accepts public data only, and an agent conversion of a project must be
   confirmed by the author. The submission id is derived from the manifest
   hash, so resubmitting identical bytes is idempotent.
-- `admission run|show`: admission checks with explicit records:
+- `admission evaluate|show`: admission checks with explicit records:
   - ORCID resolves and belongs to an author;
   - the declared repository commit checks out without credentials;
   - scitex-dev's research lint passes with zero errors and every rule run;
@@ -36,7 +36,7 @@ alongside the legacy intake, which keeps working.
   - hashes of the manifest, evidence report, review packet and admission
     record;
   - an explicit "not peer reviewed" notice.
-- `reviews file|list`: review ingestion from any source (external AI review
+- `reviews ingest|list`: review ingestion from any source (external AI review
   services, human researchers, other users). The report and source are
   validated against the journal's published schemas. The journal adds each
   claim's evidence state and records unmentioned claims as `not-assessed`.

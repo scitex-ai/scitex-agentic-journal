@@ -221,11 +221,11 @@ CLI (shipped in 0.2.0; every command takes `--json`):
 ```
 scitex-agentic-journal bundle validate   <dir>
 scitex-agentic-journal bundle submit     <dir>                     # → aj-<16 hex> submission id
-scitex-agentic-journal admission run     <id>                      # §13.1 checks → admission.json
+scitex-agentic-journal admission evaluate <id>                      # §13.1 checks → admission.json
 scitex-agentic-journal admission show    <id>
 scitex-agentic-journal preprint create   <id> <vX.Y.Z>             # admitted only; internal id, DOI later
 scitex-agentic-journal preprint show     <id>
-scitex-agentic-journal reviews file      <id> report.json source.json --channel orcid-login|service-key|operator-cli|self-declared
+scitex-agentic-journal reviews ingest    <id> report.json source.json --channel orcid-login|service-key|operator-cli|self-declared
 scitex-agentic-journal reviews list      <id>
 ```
 
@@ -312,7 +312,7 @@ Rules checked at collection:
 ## 7a. Review ingestion (any source)
 
 ```
-scitex-agentic-journal review file <submission-id> report.json [--source source.json]
+scitex-agentic-journal reviews ingest <submission-id> report.json source.json --channel <channel>
 ```
 
 The same operation is available from the portal and, later, MCP. The report
@@ -376,7 +376,7 @@ summary items. Automatic decision rules can be added later as a
 | Actor | Agent path | Human path |
 |---|---|---|
 | Author | `make submit` / `bundle submit` from the project (scitex-template target) | Django author portal upload of the same bundle |
-| Reviewer | SAC sealed container, reads files or live-paper MCP tools, writes `review-report.json` | `review template` → fills the same schema (or the portal form) → `review file`; reads `review.txt` / live-paper viewer |
+| Reviewer | SAC sealed container, reads files or live-paper MCP tools, writes `review-report.json` | fills the same schema (or the portal form) → `reviews ingest`; reads `review.txt` / live-paper viewer |
 | Editor | Agent reads `editor-summary.json`, calls `panel decide` | Reads `editor-summary.txt` / portal, calls `panel decide` |
 
 Same schemas for both; only `reviewer.kind` and identity fields differ.
