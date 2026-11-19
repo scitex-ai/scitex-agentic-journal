@@ -7,7 +7,7 @@ are independent of the authors' agents and every verdict points at a
 registered claim. Findings are tracked as issues on the authors' git host
 (§12). It covers both stages, preprint and then journal, with their gates and
 DOIs (§13), and how transparency answers the "predatory journal" criticism
-(§14).
+(§14). Each accepted claim is also exported as a corpus record (§15).
 
 ## 1. Where the repo stands (audit of `develop` @ 3824d01, v0.1.0a4)
 
@@ -249,11 +249,12 @@ never silently replaced.
       "verdict": "supported | not-supported | unclear | not-assessed",
       "graph_nodes": ["<node id from the packet's claim graph>"],
       "severity": "none | minor | major | critical",
+      "dimension": "scientific-validity | logical-structure | clarity",
       "comment": "…"
     }
   ],
   "general_findings": [
-    {"location": "manuscript §2.1", "severity": "minor", "comment": "…"}
+    {"location": "manuscript §2.1", "severity": "minor", "dimension": "clarity", "comment": "…"}
   ],
   "recommendation": "accept | minor-revision | major-revision | reject",
   "confidence": "low | medium | high",
@@ -342,6 +343,9 @@ Same schemas for both; only `reviewer.kind` and identity fields differ.
 | D10 | Contract for the preprint admission lint (§13.1): the exact scitex-dev command and the JSON output it emits | Pin it like the live-paper schemas. Whether scitex-dev publishes a machine-readable report schema is not yet confirmed; if it does not, ask scitex-dev for one |
 | D11 | Acceptance gate strictness: are claims that are `not_checkable` or have `no_evidence_graph` allowed as editor-acknowledged exceptions, or must every claim be `supported`? | Allow listed exceptions with reasons. They are shown on the article page |
 | D12 | Should the review record get its own DOI? | Yes, once a DOI backend is configured |
+| D13 | Reproduction tolerance (§13.1 check 4): exact hash match only, or tolerances declared by the authors? | Hash match by default. Author-declared tolerances are allowed per output, shown on the certificate, and reviewers can challenge them |
+| D14 | Certificate signing key and scheme (§13.2) | One journal signing key with a published public key and rotation record. The scheme is to be chosen |
+| D15 | Corpus record licence and default publication conditions (§15) | Follow each claim's data and code licences. Records are exported only for accepted claims |
 
 ## 12. Review findings as hosted issues
 
@@ -510,15 +514,87 @@ JOURNAL   review rounds as issues (§12), AI reviewers + other users
 PUBLICATION  v1.0.0 (own version line; article DOI)
 ```
 
-### 13.1 Gates
+### 13.1 Gates and checks
+
+Preprint admission has three gates, all of which must pass. Each is checked by
+the journal, not taken on the author's word:
 
 | Gate | Passes when | Checked by |
 |---|---|---|
-| Preprint admission | The snapshot passes the SciTeX research lint (scitex-dev, `project-type: research`), and the bundle validates (§3) | The journal re-runs the lint on the snapshot itself (sealed SAC run, pinned scitex-dev version). An author-supplied lint report is not trusted. The lint's output becomes a pinned contract like the live-paper schemas (D10) |
-| Journal acceptance | (a) **Computational verification:** every registered claim in the accepted snapshot's evidence report is `supported`, or is listed as an editor-acknowledged exception with a reason. (b) **Review judgement:** the editor's decision is `accept` and no `critical` issue is open | (a) is mechanical, from the evidence report. (b) is the editor's recorded decision (§8) |
+| (i) Identity | The submitter's ORCID is linked and resolves | The existing Gate-1 ORCID check (`_gate1/_orcid`), against the ORCID the submitter logged in with |
+| (ii) SciTeX standard form | The snapshot passes the SciTeX research lint (scitex-dev, `project-type: research`) | The journal re-runs the lint on the snapshot itself, in a sealed SAC run with a pinned scitex-dev version. An author-supplied report is not trusted. The lint output is pinned as a contract, like the live-paper schemas (D10) |
+| (iii) Reproducibility by Clew graph | The evidence report validates (§3), and every main claim has a graph whose verification is `supported` | Mechanically, from the evidence report |
+
+Admitted preprints then go through the automated checks, run by the journal
+in sealed SAC runs. Each check produces a record:
+
+1. **Format conformance**: the bundle and manuscript (§3), and Live Paper
+   renderability.
+2. **Clew verify**: the journal re-derives the evidence states on the
+   snapshot and compares them with the submitted report. A mismatch is a
+   finding.
+3. **Code executability**: the project's entry points run in a clean
+   container.
+4. **Reproduction of main results**: the main claims' process nodes are
+   re-executed, and the outputs are compared by hash or by declared
+   tolerance. The result is `reproduced | differs | not-run (reason)`.
+
+AI review (§6–§7, §12) then addresses **scientific validity, logical
+structure and clarity**. Each finding carries a `dimension` field taking one
+of those three values.
+
+Journal acceptance requires both of the following:
+
+- **Computational verification**: every registered claim in the accepted
+  snapshot is `supported` with reproduction `reproduced`, or is listed as an
+  editor-acknowledged exception with a reason (D11).
+- **Review judgement**: the editor's decision is `accept` and no `critical`
+  issue is open.
 
 Admission is not acceptance: a preprint carries no claim of peer review, and
 its page says so.
+
+### 13.1a AI review is auxiliary at first
+
+- **Humans confirm.** While the venue is in the `auxiliary` phase (a
+  journal-level setting recorded in every decision), a decision needs at
+  least one human reviewer, or a human editor confirming the AI findings
+  issue by issue. Every AI finding is labelled `aj:source/ai`, and humans
+  mark it `confirmed | disputed | irrelevant`.
+- **Agreement is measured.** For each submission and each reviewer
+  release, the journal computes:
+  - per-claim verdict agreement between AI and human reviewers;
+  - issues raised only by AI or only by humans (complementarity);
+  - human confirmation rates by severity and dimension.
+
+  Results are published in aggregate.
+- **Reviewer releases are versioned.** Model, settings, prompt, SAC spec
+  template and tool allowlist together form a reviewer release
+  (`reviewer@1.2.0`), committed to this repo, with a changelog. Its run
+  history (every outcome record and report) is indexed by release. A new
+  release is evaluated against the previous one on held-out past
+  submissions before use.
+- **Ratings feed the next release.** Authors and researchers rate each AI
+  finding (`useful | not useful` and `correct | incorrect`, with an optional
+  reason) through the portal or CLI. Ratings are stored per finding key and
+  are an input to the next release's evaluation. They never change a past
+  decision.
+
+### 13.1b Initial scope and policies
+
+- **Public data only (v1).** The manifest declares each dataset with its
+  source, licence and access URL. Admission refuses non-public or
+  access-controlled data, and records the reason.
+- **Policy documents** are deliverables of the venue, versioned under
+  `docs/policies/`: submission rules, research ethics, data policy, and the
+  reviewer-disclosure policy (D7). Every submission records the policy
+  versions it was submitted under. These documents are not written yet.
+- **Converting existing projects.** An agent may convert a project into
+  SciTeX form (scitexification). The conversion is recorded as its own
+  record: converting agent and model, source commit, resulting commit, and
+  diff hash. Admission requires the author's explicit confirmation of that
+  conversion, made while logged in with their ORCID. Without that
+  confirmation, a converted project cannot pass gate (ii).
 
 ### 13.2 Versions, snapshots, DOIs
 
@@ -534,6 +610,23 @@ its page says so.
 - **Review record**: the round mirrors (§12.8), editor summaries and decision
   are published with the article. Optionally they get their own DOI, related
   to the article as a review of it.
+- **Internal IDs first, DOI later.** On acceptance the existing
+  `InternalIdMinter` assigns an internal persistent ID immediately. DOI
+  registration (the company is the registrant) runs separately and may lag.
+  When it completes, the DOI is recorded as an alias of the internal ID.
+  Publication never waits on the DOI process.
+- **Verified certificate.** Each accepted publication version gets
+  `certificate.json`, plus a rendered page. It lists:
+  - the snapshot commit and bundle hash;
+  - the evidence-report hash;
+  - each gate and automated-check result;
+  - the reproduction results;
+  - the reviewer provenance (§14);
+  - the decision.
+
+  It is signed by the journal's published key (detached signature; the key
+  type is an open choice, D14), so anyone can verify it offline. It is
+  published with the Live Paper.
 - **DOI minting is an adapter.** It reuses the existing `IdMinter` protocol in
   `_publish` (Zenodo, JaLC and Crossref backends, plus a sandbox).
   - Backends are selected by configuration, and `none` is valid, so DOIs are
@@ -582,3 +675,58 @@ uncorrelated with scrutiny. This venue makes every step inspectable:
 
 The article, preprint and review pages render these records directly. There
 is no separate "trust badge" that could drift from them.
+
+## 15. Corpus export: one record per accepted claim
+
+Every accepted claim also becomes a corpus record: a self-contained unit
+that downstream users (search, meta-research, training data under licence)
+can consume without the journal.
+
+Schema `scitex-agentic-journal.claim-record` 1.0 (journal-owned, published in
+the wheel under `_contracts/schemas/`), exported as JSON Lines per publication
+version, and accumulated into a corpus index:
+
+```json
+{
+  "schema": "scitex-agentic-journal.claim-record",
+  "schema_version": "1.0",
+  "record_id": "<publication id>#C3",
+  "claim": {"claim_id": "C3", "type": "…", "stated_text": "…", "stated_value": "…",
+            "location": {"file": "…", "line": 0, "label": "…"}},
+  "source_data": [{"name": "…", "url": "…", "sha256": "…", "licence": "CC-BY-4.0"}],
+  "code": {"repository": "…", "commit": "<sha>", "paths": ["…"], "licence": "…"},
+  "execution_history": {"graph": {"nodes": [], "edges": []},
+                        "journal_runs": [{"check": "reproduction", "sac_outcome_sha256": "…"}]},
+  "verification": {"provider": {"name": "scitex-clew", "version": "…"},
+                   "state": "supported", "evidence_report_sha256": "…"},
+  "reproduction": {"result": "reproduced | differs | not-run", "tolerance": null, "detail": "…"},
+  "review": {"verdicts": [{"reviewer_slot": "r1", "kind": "agent", "verdict": "supported"}],
+             "issues": ["<issue urls>"]},
+  "provenance": {
+    "source": "<publication DOI or internal id>",
+    "generation_route": "human-authored | agent-authored | agent-converted+author-confirmed",
+    "producers": [{"kind": "agent", "id": "…", "model": "…"}],
+    "policy_versions": {"submission": "…", "data": "…", "ethics": "…"}
+  },
+  "publication_conditions": {"licence": "…", "embargo_until": null,
+                             "publication_version": "v1.0.0", "doi": null, "internal_id": "…"},
+  "certificate_sha256": "…"
+}
+```
+
+Rules:
+
+- **Only accepted claims are exported.** Claims listed as acknowledged
+  exceptions (D11) are exported with their real state and the editor's
+  reason, never upgraded to `supported`.
+- **Values are copied, not re-derived.** Every value comes from a record the
+  journal already holds (evidence report, check records, review mirror,
+  certificate), and each copy carries that record's hash.
+- **Licences are respected.** The record's licence is the most restrictive
+  of the claim's data and code licences. The exporter refuses a record whose
+  licences are missing or incompatible (D15).
+- **Export is a CLI, idempotent per publication version:**
+  `scitex-agentic-journal corpus export <publication-id> --out claims.jsonl`.
+- **Corrections publish a new version.** A correction (`v1.0.1`) produces new
+  records that supersede the old ones. Old records stay available and are
+  marked superseded.
