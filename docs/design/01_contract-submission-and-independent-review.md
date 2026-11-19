@@ -1,7 +1,7 @@
 # Design 01 — Contract-based submission, admission and review ingestion
 
-Status: **accepted with re-scope (2026-11-19)**. See §0. Phase 2 implements
-the stages *before* review.
+Status: **accepted with re-scope (2026-11-19)**. See §0. Phase 2 (the stages
+*before* review) shipped in 0.2.0; see §10.
 
 Scope: submission → admission checks → preprint snapshot → review
 ingestion → decision. Every verdict points at a registered claim. Findings
@@ -216,19 +216,22 @@ Every transition writes one immutable JSON record into
 `$SCITEX_AGENTIC_JOURNAL_HOME/submissions/<id>/` (existing layout; no
 database). A revision is a new submission linked by `supersedes`.
 
-CLI (Phase 2):
+CLI (shipped in 0.2.0; every command takes `--json`):
 
 ```
-scitex-agentic-journal bundle validate <dir>
-scitex-agentic-journal bundle submit   <dir>                 # → submission id
-scitex-agentic-journal panel assign    <id> --reviewers reviewers.yaml
-scitex-agentic-journal panel run       <id>                  # launches SAC reviewers
-scitex-agentic-journal panel collect   <id>                  # validates reports + outcomes
-scitex-agentic-journal panel summary   <id>                  # editor summary (json + txt)
-scitex-agentic-journal panel decide    <id> --editor <who> --decision <d> --reason …
-scitex-agentic-journal review template <id>                  # human reviewer form
-scitex-agentic-journal review file     <id> report.json      # human reviewer submit
+scitex-agentic-journal bundle validate   <dir>
+scitex-agentic-journal bundle submit     <dir>                     # → aj-<16 hex> submission id
+scitex-agentic-journal admission evaluate <id>                      # §13.1 checks → admission.json
+scitex-agentic-journal admission show    <id>
+scitex-agentic-journal preprint create   <id> <vX.Y.Z>             # admitted only; internal id, DOI later
+scitex-agentic-journal preprint show     <id>
+scitex-agentic-journal reviews ingest    <id> report.json source.json --channel orcid-login|service-key|operator-cli|self-declared
+scitex-agentic-journal reviews list      <id>
 ```
+
+Future (not in 0.2.0): `panel assign|run|collect` for the in-house reviewer
+panel (§6), the editor summary and the contract-path `decide` (§8), and hosted
+issue filing (§12).
 
 ## 6. Reviewer independence (future option: in-house reviewer panel)
 
@@ -309,7 +312,7 @@ Rules checked at collection:
 ## 7a. Review ingestion (any source)
 
 ```
-scitex-agentic-journal review file <submission-id> report.json [--source source.json]
+scitex-agentic-journal reviews ingest <submission-id> report.json source.json --channel <channel>
 ```
 
 The same operation is available from the portal and, later, MCP. The report
@@ -373,7 +376,7 @@ summary items. Automatic decision rules can be added later as a
 | Actor | Agent path | Human path |
 |---|---|---|
 | Author | `make submit` / `bundle submit` from the project (scitex-template target) | Django author portal upload of the same bundle |
-| Reviewer | SAC sealed container, reads files or live-paper MCP tools, writes `review-report.json` | `review template` → fills the same schema (or the portal form) → `review file`; reads `review.txt` / live-paper viewer |
+| Reviewer | SAC sealed container, reads files or live-paper MCP tools, writes `review-report.json` | fills the same schema (or the portal form) → `reviews ingest`; reads `review.txt` / live-paper viewer |
 | Editor | Agent reads `editor-summary.json`, calls `panel decide` | Reads `editor-summary.txt` / portal, calls `panel decide` |
 
 Same schemas for both; only `reviewer.kind` and identity fields differ.
@@ -437,6 +440,8 @@ Same schemas for both; only `reviewer.kind` and identity fields differ.
 | D13 | Reproduction tolerance (§13.1 check 4): exact hash match only, or tolerances declared by the authors? | Hash match by default. Author-declared tolerances are allowed per output, shown on the certificate, and reviewers can challenge them |
 | D14 | Certificate signing key and scheme (§13.2) | One journal signing key with a published public key and rotation record. The scheme is to be chosen |
 | D15 | Corpus record licence and default publication conditions (§15) | Follow each claim's data and code licences. Records are exported only for accepted claims |
+| D16 | The journal cannot re-derive evidence states from a snapshot: Clew keeps runs and claims in the authors' host store (Postgres), not in the repository | Ask scitex-clew for a portable, signed export of a project's runs and claims that travels with the snapshot. Until then `clew-reverify` is recorded as `not-run` and admission relies on the submitted report validating against the pinned contract |
+| D17 | Executability and reproduction need an isolated executor: `clew rerun` replays author code on the host with no isolation | Add an apptainer executor (`--containall --cleanenv --no-home --net --network none`) behind the `Executor` protocol. Until then both checks are `not-run` |
 
 ## 12. Review findings as hosted issues
 

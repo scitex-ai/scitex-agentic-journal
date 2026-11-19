@@ -4,6 +4,61 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-19
+
+Contract-based path for the stages before review (design:
+`docs/design/01_contract-submission-and-independent-review.md`). It sits
+alongside the legacy intake, which keeps working.
+
+### Added
+
+- `bundle seal|validate|submit`: `seal` writes every file's hash into
+  the manifest (for `make submit`-style tooling). A submission bundle (`submission.json` manifest,
+  manuscript, scitex-live-paper evidence report and review packet,
+  bibliography) is validated against **vendored, version-pinned**
+  scitex-live-paper schemas (evidence-report and review-packet 1.2.0, pinned
+  at commit 963de44). Every file is hashed, unlisted files and symlinks are
+  refused, and the packet must agree with the report claim by claim. v1
+  accepts public data only, and an agent conversion of a project must be
+  confirmed by the author. The submission id is derived from the manifest
+  hash, so resubmitting identical bytes is idempotent.
+- `admission evaluate|show`: admission checks with explicit records:
+  - ORCID resolves and belongs to an author;
+  - the declared repository commit checks out without credentials (only
+    `https://` URLs; local paths need the operator flag
+    `--allow-local-repositories`, and a URL is never parsed as a git option);
+  - scitex-dev's research lint passes with zero errors and every rule run;
+  - every declared main claim is `supported` with an evidence graph.
+
+  Clew re-verification, executability and reproduction are recorded as
+  `not-run`, with the reason. Author code is never run on the journal host,
+  and child processes get an explicit minimal environment.
+- `preprint create|show`: an admitted submission becomes a preprint record:
+  - an internal persistent ID, with the DOI `unregistered` until a minter
+    runs;
+  - hashes of the manifest, evidence report, review packet and admission
+    record;
+  - an explicit "not peer reviewed" notice.
+- `reviews ingest|list`: review ingestion from any source (external AI review
+  services, human researchers, other users). The report and source are
+  validated against the journal's published schemas. The journal adds each
+  claim's evidence state and records unmentioned claims as `not-assessed`.
+  It refuses unknown claims and graph nodes, and refuses authors or
+  producers as reviewers. The channel the identity arrived by is recorded (CLI channels are recorded as unverified; verified ORCID-login/service-key channels need an authenticated surface). Authors are refused by ORCID, by name and as listed producers. Reviewers get
+  per-submission pseudonyms. Findings are added to a local ledger keyed by
+  reviewer, anchor and dimension; re-filing never duplicates, and each round
+  recomputes a finding's severity and open/noted status.
+- Journal-owned JSON Schemas (`submission`, `review-report`,
+  `review-source`) are published in the wheel under `_contracts/schemas/`.
+
+### Fixed
+
+- A placeholder review can no longer produce an editorial decision. Review
+  records carry `adapter_mode`, and `decide` refuses anything that is not
+  `live`, including the `local-deterministic` adapter and legacy records
+  without a mode. Previously a Gate-1-passing bundle reached
+  `default_accept` without any real review.
+
 ## [0.1.0a4] - 2026-11-01
 
 ### Added

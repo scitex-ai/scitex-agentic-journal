@@ -212,6 +212,13 @@ from scitex_agentic_journal._cli._publish import register_publish_command
 register_publish_command(main)
 
 
+# Contract-based path (design 01): `bundle`, `admission`, `preprint`,
+# `reviews` groups. Lives in `_cli._contract`.
+from scitex_agentic_journal._cli._contract import register_contract_commands
+
+register_contract_commands(main)
+
+
 # `hub-manifest` subcommand (M4 path B — hub-app-publisher CLI).
 # Mirrors live-paper PR #45's `hub-manifest` verb verbatim so the
 # scitex-hub scaffolder can shell-out uniformly to both upstream

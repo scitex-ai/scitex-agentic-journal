@@ -76,8 +76,10 @@ content_hash=sha256:f3b1...
 ```
 
 `--adapter local` is the deterministic in-memory adapter that ships in
-this package. `--adapter qwen` is a NotImplementedError stub until the
-live endpoint is wired.
+this package. It is a placeholder (`adapter_mode: stub`): it exercises the
+pipeline but runs no review, and since 0.2.0 `decide` refuses its records.
+`--adapter qwen` is a NotImplementedError stub until the live endpoint is
+wired.
 
 ## M3 editorial decision engine (issue #7)
 
@@ -87,7 +89,9 @@ DECISION submission_id=sub_2026_06_13_abc123 verdict=accept \
 rules_version=v1 content_hash=sha256:5b89...
 ```
 
-The verdict (`accept | revise | reject`) is derived from the
+`decide` needs a real review on record (`adapter_mode: live`); on a
+placeholder review it exits non-zero and explains why. The verdict
+(`accept | revise | reject`) is derived from the
 versioned YAML rules-set at
 `src/scitex_agentic_journal/_decide/rules/v1.yaml`. Every evaluated
 rule contributes a `RuleHit` to the persisted `decision.json`, so

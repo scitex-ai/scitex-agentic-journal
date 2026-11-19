@@ -110,6 +110,7 @@ class ReviewRunner:
             ),
             started_at=started_at,
             finished_at=finished_at,
+            adapter_mode=str(getattr(self._adapter, "mode", "unknown")),
         )
 
 

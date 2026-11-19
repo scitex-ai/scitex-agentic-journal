@@ -136,6 +136,10 @@ class ReviewRecord:
     methodology: MethodologyReport
     started_at: datetime
     finished_at: datetime
+    adapter_mode: str = "unknown"
+    """``live`` only when a real reviewer produced the record. ``stub`` and
+    ``unknown`` records are structural placeholders and the decision engine
+    refuses them (design 01, defect 1)."""
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,21 @@
+{
+  "source_repo": "https://github.com/scitex-ai/scitex-live-paper",
+  "files": {
+    "evidence-report.schema.json": {
+      "contract": "scitex-live-paper.evidence-report",
+      "schema_id": "https://scitex.ai/schemas/scitex-live-paper/evidence-report/1.2.0",
+      "ref": "develop (PR #106 merge)",
+      "commit": "963de44fa4f7204326149ab141eb52217b32b229",
+      "path": "src/scitex_live_paper/evidence/evidence-report.schema.json",
+      "sha256": "7b575ebf589fd8bae3508fd60753098308646ee0fce77f23554e1d5b45a086a1"
+    },
+    "review-packet.schema.json": {
+      "contract": "scitex-live-paper.review-packet",
+      "schema_id": "https://scitex.ai/schemas/scitex-live-paper/review-packet/1.2.0",
+      "ref": "develop (PR #106 merge)",
+      "commit": "963de44fa4f7204326149ab141eb52217b32b229",
+      "path": "src/scitex_live_paper/evidence/review-packet.schema.json",
+      "sha256": "0fe7f00fa170743ac464d560326c69869d8e56392558ea31c64a379c4dadf147"
+    }
+  }
+}

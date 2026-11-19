@@ -1,0 +1,48 @@
+{
+ "schema": "scitex-agentic-journal.submission",
+ "schema_version": "1.0",
+ "title": "Reference project exercising the evidence contract",
+ "authors": [
+  {
+   "name": "Josiah Carberry",
+   "orcid": "0000-0002-1825-0097",
+   "corresponding": true
+  }
+ ],
+ "submitter_orcid": "0000-0002-1825-0097",
+ "repository": {
+  "host": "github",
+  "url": "https://github.com/scitex-ai/scitex-live-paper",
+  "commit": "963de44fa4f7204326149ab141eb52217b32b229",
+  "tag": null,
+  "project_version": "0.5.0.dev0"
+ },
+ "licence": {
+  "manuscript": "CC-BY-4.0",
+  "code": "AGPL-3.0-only"
+ },
+ "data": [],
+ "produced_by": [
+  {
+   "kind": "agent",
+   "id": "scitex-live-paper-reference-provider",
+   "model": null
+  }
+ ],
+ "main_claims": [
+  "auc"
+ ],
+ "contracts": {
+  "evidence_report": "scitex-live-paper.evidence-report@1",
+  "review_packet": "scitex-live-paper.review-packet@1"
+ },
+ "files": {
+  "evidence-report.json": "sha256:9d54303b741495eeb679cb3903d9dcf357c3d5f097e40e83801f49115b862300",
+  "manuscript/manuscript.pdf": "sha256:d281b1a2e3cb504b6fac8a75ad669141c8f3510ebe663769dcbd0b34191bad24",
+  "manuscript/paper.tex": "sha256:81fddc6e1eaf07594d56a7f62d5e8b3502645cc828c4d824636ab14633d0bd9f",
+  "references.bib": "sha256:ffd2eff2bb9bac1f3f4342fa1fc1ead1cb9d90db002df8f0012224dcce407956",
+  "review-packet/review.json": "sha256:785cf8deaea0ddb4f0cd165f035cb345607d3e0ab7f79a5a4d7d655d65d96b9a",
+  "review-packet/review.txt": "sha256:b570ad8e686edf82658f318e129dec77f15f4227c22631f0f76e252890a37bd4"
+ },
+ "supersedes": null
+}

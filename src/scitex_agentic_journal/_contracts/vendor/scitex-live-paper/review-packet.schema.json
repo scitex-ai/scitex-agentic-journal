@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scitex.ai/schemas/scitex-live-paper/review-packet/1.2.0",
+  "title": "scitex-live-paper review packet",
+  "description": "What scitex-live-paper hands a human or AI reviewer (review.json, export-review, MCP live_paper_evidence_review): the evidence report re-ordered for review, needs_inspection first (not_supported, not_checkable, no_evidence_graph; then by file, line, claim_id), then supported (by file, line, claim_id). Only registered claims appear. Versioned by schema_version (semver): a MINOR bump only adds fields; a MAJOR bump changes or removes fields. Self-contained (no external $ref). See docs/evidence-provider-contract.md.",
+  "type": "object",
+  "required": [
+    "schema",
+    "schema_version",
+    "scope",
+    "provider",
+    "evidence_report_version",
+    "project_root",
+    "states",
+    "symbols",
+    "counts",
+    "needs_inspection",
+    "supported"
+  ],
+  "properties": {
+    "schema": {"const": "scitex-live-paper.review-packet"},
+    "schema_version": {"type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$"},
+    "scope": {"type": "string", "minLength": 1, "description": "The scope rule in one paragraph: only registered claims are assessed."},
+    "provider": {
+      "type": "object",
+      "description": "The evidence report's provider block, copied verbatim.",
+      "required": ["name"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "version": {"type": ["string", "null"]}
+      }
+    },
+    "evidence_report_version": {"type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$", "description": "schema_version of the evidence report the packet was built from."},
+    "project_root": {"type": ["string", "null"]},
+    "states": {"$ref": "#/$defs/per_state_string", "description": "State to plain-language label."},
+    "symbols": {"$ref": "#/$defs/per_state_string", "description": "State to the one symbol that reads without colour."},
+    "counts": {
+      "type": "object",
+      "description": "Number of claims per state (every state present, 0 when none).",
+      "required": ["not_supported", "not_checkable", "no_evidence_graph", "supported"],
+      "additionalProperties": false,
+      "properties": {
+        "not_supported": {"$ref": "#/$defs/count"},
+        "not_checkable": {"$ref": "#/$defs/count"},
+        "no_evidence_graph": {"$ref": "#/$defs/count"},
+        "supported": {"$ref": "#/$defs/count"}
+      }
+    },
+    "needs_inspection": {
+      "type": "array",
+      "description": "Every claim whose state is not supported, in review order.",
+      "items": {
+        "allOf": [
+          {"$ref": "#/$defs/entry"},
+          {
+            "properties": {
+              "state": {"not": {"const": "supported"}},
+              "needs_inspection": {"const": true}
+            }
+          }
+        ]
+      }
+    },
+    "supported": {
+      "type": "array",
+      "description": "Every supported claim, by position.",
+      "items": {
+        "allOf": [
+          {"$ref": "#/$defs/entry"},
+          {
+            "properties": {
+              "state": {"const": "supported"},
+              "needs_inspection": {"const": false}
+            }
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "state": {
+      "enum": ["supported", "not_supported", "not_checkable", "no_evidence_graph"],
+      "description": "The provider-neutral evidence state (same vocabulary as the evidence report)."
+    },
+    "count": {"type": "integer", "minimum": 0},
+    "per_state_string": {
+      "type": "object",
+      "required": ["not_supported", "not_checkable", "no_evidence_graph", "supported"],
+      "additionalProperties": false,
+      "properties": {
+        "not_supported": {"type": "string", "minLength": 1},
+        "not_checkable": {"type": "string", "minLength": 1},
+        "no_evidence_graph": {"type": "string", "minLength": 1},
+        "supported": {"type": "string", "minLength": 1}
+      }
+    },
+    "entry": {
+      "type": "object",
+      "description": "One registered claim: the report's claim fields (every key present, null when the report omitted it) plus label, symbol, needs_inspection, failing_nodes and graph_url.",
+      "required": [
+        "claim_id",
+        "location",
+        "claim_type",
+        "stated_text",
+        "stated_value",
+        "state",
+        "label",
+        "symbol",
+        "reason",
+        "needs_inspection",
+        "source",
+        "details",
+        "provider_status",
+        "graph",
+        "failing_nodes",
+        "graph_error",
+        "graph_url"
+      ],
+      "properties": {
+        "claim_id": {"type": "string", "minLength": 1},
+        "location": {
+          "type": "object",
+          "required": ["file", "line", "label"],
+          "properties": {
+            "file": {"type": ["string", "null"]},
+            "line": {"type": ["integer", "null"], "minimum": 1},
+            "label": {"type": ["string", "null"]}
+          }
+        },
+        "claim_type": {"type": ["string", "null"]},
+        "stated_text": {"type": ["string", "null"]},
+        "stated_value": {"description": "The value the claim states, any JSON type (null when the report gave none)."},
+        "state": {"$ref": "#/$defs/state"},
+        "label": {"type": "string", "minLength": 1, "description": "Plain-language label of state (same as states[state])."},
+        "symbol": {"type": "string", "minLength": 1, "description": "Symbol of state (same as symbols[state])."},
+        "reason": {"type": "string", "minLength": 1},
+        "needs_inspection": {"type": "boolean", "description": "true exactly when state is not supported."},
+        "source": {
+          "type": "object",
+          "required": ["file", "locator", "value", "value_reported"],
+          "properties": {
+            "file": {"type": ["string", "null"]},
+            "locator": {"description": "Provider-defined locator, or null."},
+            "value": {"description": "Added in 1.2.0. The value the provider read at the locator, any JSON type; null when not reported (see value_reported)."},
+            "value_reported": {"type": "boolean", "description": "Added in 1.2.0. Whether the report gave source.value; distinguishes a null value from no value."}
+          }
+        },
+        "details": {"type": "array", "items": {"type": "string"}},
+        "provider_status": {
+          "type": ["object", "null"],
+          "description": "The provider's own raw verdict, copied verbatim.",
+          "properties": {
+            "name": {"type": "string"},
+            "code": {"type": ["integer", "null"]}
+          }
+        },
+        "graph": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/graph"}],
+          "description": "The claim's minimal evidence graph, or null when the report has none."
+        },
+        "failing_nodes": {
+          "type": "array",
+          "description": "Added in 1.1.0. One item per graph node marked with a failure, in graph order; empty when none.",
+          "items": {"$ref": "#/$defs/failing_node"}
+        },
+        "graph_error": {"type": ["string", "null"]},
+        "graph_url": {"type": ["string", "null"], "description": "The claim's graph page in the rendered site (relative URL), or null when not rendered."}
+      }
+    },
+    "failing_node": {
+      "type": "object",
+      "required": ["id", "kind", "label", "failure", "failure_label", "detail"],
+      "properties": {
+        "id": {"type": "string"},
+        "kind": {"$ref": "#/$defs/node_kind"},
+        "label": {"type": "string"},
+        "failure": {"$ref": "#/$defs/failure_kind"},
+        "failure_label": {"type": "string", "minLength": 1, "description": "Changed / Missing / Mismatched for the recommended kinds; otherwise the token, humanised."},
+        "detail": {"type": ["string", "null"]}
+      }
+    },
+    "node_kind": {"enum": ["claim", "process", "input", "output", "other"]},
+    "failure_kind": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "failure": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": {"$ref": "#/$defs/failure_kind"},
+        "detail": {"type": ["string", "null"]}
+      }
+    },
+    "graph": {
+      "type": "object",
+      "required": ["nodes", "edges"],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "kind", "label"],
+            "properties": {
+              "id": {"type": "string"},
+              "kind": {"$ref": "#/$defs/node_kind"},
+              "label": {"type": "string"},
+              "hash": {"type": ["string", "null"]},
+              "external": {"type": "boolean"},
+              "failure": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/failure"}]}
+            }
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source", "target"],
+            "properties": {
+              "source": {"type": "string"},
+              "target": {"type": "string"},
+              "kind": {"type": ["string", "null"]}
+            }
+          }
+        },
+        "summary": {"type": ["string", "null"]}
+      }
+    }
+  }
+}
