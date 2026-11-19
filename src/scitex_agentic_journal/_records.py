@@ -9,10 +9,13 @@ by its hash.
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
 import re
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -36,11 +39,23 @@ def journal_home(home: Path | None = None) -> Path:
 
 def submission_dir(submission_id: str, home: Path | None = None) -> Path:
     """Directory of one contract-based submission; validates the id shape."""
-    if not _SUBMISSION_ID_RE.match(submission_id):
+    if not _SUBMISSION_ID_RE.fullmatch(submission_id):
         raise RecordError(
             f"invalid submission id {submission_id!r}; expected 'aj-' + 16 hex digits"
         )
     return journal_home(home) / "submissions" / submission_id
+
+
+@contextmanager
+def record_lock(record_dir: Path) -> Iterator[None]:
+    """Exclusive lock on one submission's records (read-modify-write safety)."""
+    record_dir.mkdir(parents=True, exist_ok=True)
+    with (record_dir / ".lock").open("a") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fh, fcntl.LOCK_UN)
 
 
 def canonical_json(obj: Any) -> bytes:

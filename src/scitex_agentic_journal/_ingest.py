@@ -30,6 +30,7 @@ from scitex_agentic_journal._contracts import journal_schema, validate
 from scitex_agentic_journal._preprint import load_preprint
 from scitex_agentic_journal._records import (
     RecordError,
+    record_lock,
     canonical_json,
     read_record,
     sha256_hex,
@@ -42,12 +43,13 @@ REVIEWERS = "reviewers.json"
 FINDINGS = "findings.json"
 REVIEWS_DIR = "reviews"
 OPEN_SEVERITIES = {"minor", "major", "critical"}
-#: How a reviewer's identity reached the journal. Only ORCID login and a
-#: journal-issued service key are verified by the journal itself; the
-#: operator CLI carries the operator's word, and self-declared carries none.
+SEVERITY_ORDER = ("none", "minor", "major", "critical")
+#: How a reviewer's identity reached the journal. Neither channel below is
+#: verified by the journal: the operator CLI carries the operator's word, and
+#: self-declared carries none. Verified channels (ORCID login, a
+#: journal-issued service key) arrive with an authenticated surface (portal
+#: or API) and are not accepted until that surface exists.
 CHANNELS = {
-    "orcid-login": True,
-    "service-key": True,
     "operator-cli": False,
     "self-declared": False,
 }
@@ -67,10 +69,15 @@ def _identity_key(source: dict[str, Any]) -> str:
     basis = {
         "kind": source["kind"],
         "orcid": ident.get("orcid"),
+        "name": _norm(ident.get("name")),
         "service": ident.get("service"),
         "model": [model.get("provider"), model.get("name")],
     }
     return sha256_hex(canonical_json(basis))
+
+
+def _norm(name: str | None) -> str | None:
+    return " ".join(name.casefold().split()) if name else None
 
 
 def _graph_nodes(report: dict[str, Any]) -> dict[str, set[str] | None]:
@@ -145,6 +152,9 @@ def file_review(
         manifest["submitter_orcid"]
     }
     producer_ids = {p["id"] for p in manifest["produced_by"]}
+    author_names = {_norm(a["name"]) for a in manifest["authors"]}
+    if _norm(ident.get("name")) in author_names:
+        problems.append(f"reviewer name {ident['name']!r} is an author of the submission")
     if ident.get("orcid") and ident["orcid"] in author_orcids:
         problems.append(
             f"reviewer ORCID {ident['orcid']} is an author of the submission"
@@ -197,6 +207,27 @@ def file_review(
             )
 
     record_dir = submission_dir(submission_id, home)
+    with record_lock(record_dir):
+        return _record_review(
+            record_dir, intake, report, source, channel, findings, unverified,
+            home=home, now=now,
+        )
+
+
+def _record_review(
+    record_dir: Path,
+    intake: dict[str, Any],
+    report: dict[str, Any],
+    source: dict[str, Any],
+    channel: str,
+    findings: list[dict[str, Any]],
+    unverified: dict[str, list[str]],
+    *,
+    home: Path | None,
+    now: datetime | None,
+) -> dict[str, Any]:
+    """Assign the pseudonym, write the review and update the ledger (under lock)."""
+    submission_id = intake["submission_id"]
     reviewers_path = record_dir / REVIEWERS
     reviewers = (
         read_record(reviewers_path) if reviewers_path.exists() else {"by_identity": {}}
@@ -270,26 +301,36 @@ def _update_ledger(
         entries.append((anchor, f))
     for f in review["general_findings"]:
         entries.append((_anchor_general(f["location"]), f))
+    touched: set[str] = set()
     for anchor, f in entries:
+        # One issue per (reviewer, anchor, dimension): two findings on the
+        # same claim about different dimensions stay separate.
+        anchor = f"{anchor}#{f.get('dimension') or 'unspecified'}"
         key = sha256_hex(canonical_json([lineage, pseudonym, anchor]))
         item = ledger["findings"].setdefault(
             key,
-            {
-                "anchor": anchor,
-                "reviewer_pseudonym": pseudonym,
-                "comments": [],
-                "status": "open" if f["severity"] in OPEN_SEVERITIES else "noted",
-                "rounds": [],
-                "issue": None,
-            },
+            {"anchor": anchor, "reviewer_pseudonym": pseudonym, "comments": [],
+             "rounds": [], "issue": None},
         )
-        item.update(
-            {k: f.get(k) for k in ("severity", "dimension", "verdict", "packet_state")}
-        )
-        if review_id not in [c["review_id"] for c in item["comments"]]:
-            item["comments"].append({"review_id": review_id, "comment": f["comment"]})
+        if key not in touched:
+            # The latest round's findings replace the item's current state.
+            item["current"] = []
+            touched.add(key)
+        entry = {"review_id": review_id, "round": round_no,
+                 "severity": f["severity"], "verdict": f.get("verdict"),
+                 "comment": f["comment"]}
+        item["comments"].append(entry)
+        item["current"].append(entry)
         if round_no not in item["rounds"]:
             item["rounds"].append(round_no)
+        worst = max((c["severity"] for c in item["current"]), key=SEVERITY_ORDER.index)
+        item.update({
+            "severity": worst,
+            "dimension": f.get("dimension"),
+            "verdict": f.get("verdict"),
+            "packet_state": f.get("packet_state"),
+            "status": "open" if worst in OPEN_SEVERITIES else "noted",
+        })
     write_record(path, ledger)
 
 

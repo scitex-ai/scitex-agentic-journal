@@ -67,7 +67,9 @@ canonical manifest.
 
 ## Review ingestion (any source)
 
-`reviews ingest ID report.json source.json --channel orcid-login|service-key|operator-cli|self-declared`
+`reviews ingest ID report.json source.json --channel operator-cli|self-declared`
+
+Both channels are recorded as `verified_by_journal: false`. Verified channels (ORCID login, journal-issued service keys) come with an authenticated portal/API surface, not the CLI.
 
 - **report**: `_contracts/schemas/review-report.schema.json`. It holds:
   - `claim_findings[]`, each with `claim_id`, `verdict`, `graph_nodes`,

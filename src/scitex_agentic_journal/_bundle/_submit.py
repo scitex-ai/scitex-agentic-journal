@@ -16,6 +16,7 @@ from pathlib import Path
 from scitex_agentic_journal._bundle._validate import BundleValidation, validate_bundle
 from scitex_agentic_journal._records import (
     RecordError,
+    record_lock,
     read_record,
     submission_dir,
     utcnow_iso,
@@ -58,6 +59,16 @@ def submit_bundle(
     assert validation.manifest is not None and validation.submission_id is not None
     sid = validation.submission_id
     record_dir = submission_dir(sid, home)
+    with record_lock(record_dir):
+        return _record_intake(validation, record_dir, now)
+
+
+def _record_intake(
+    validation: BundleValidation, record_dir: Path, now: datetime | None
+) -> IntakeReceipt:
+    """Copy and record a validated bundle (caller holds the submission lock)."""
+    sid = validation.submission_id
+    assert sid is not None and validation.manifest is not None
     intake_path = record_dir / INTAKE_RECORD
     if intake_path.exists():
         existing = read_record(intake_path)

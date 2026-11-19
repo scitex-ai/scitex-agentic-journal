@@ -204,3 +204,34 @@ def test_seal_refuses_symlinks(bundle):
     with pytest.raises(ValueError, match="symlink"):
         call()
 
+def test_packet_entry_without_claim_id_is_a_finding_not_a_crash(bundle):
+    # Arrange
+    def strip(packet):
+        del packet["needs_inspection"][0]["claim_id"]
+    _rewrite_listed(bundle, "review-packet/review.json", strip)
+    # Act
+    codes = _codes(bundle)
+    # Assert
+    assert "review-packet-schema" in codes
+
+
+def test_packet_showing_a_different_value_than_the_report_is_refused(bundle):
+    # Arrange
+    def alter(packet):
+        packet["supported"][0]["stated_value"] = 0.99
+    _rewrite_listed(bundle, "review-packet/review.json", alter)
+    # Act
+    codes = _codes(bundle)
+    # Assert
+    assert "packet-report-field" in codes
+
+
+def test_fifo_in_a_bundle_is_refused(bundle):
+    # Arrange
+    import os
+
+    os.mkfifo(bundle / "manuscript" / "pipe")
+    # Act
+    codes = _codes(bundle)
+    # Assert
+    assert "special-file" in codes

@@ -268,9 +268,7 @@ def register_contract_commands(main_group: click.Group) -> None:
         "--channel",
         default="operator-cli",
         show_default=True,
-        type=click.Choice(
-            ["orcid-login", "service-key", "operator-cli", "self-declared"]
-        ),
+        type=click.Choice(["operator-cli", "self-declared"]),
         help="How the reviewer's identity reached the journal.",
     )
     @_json_opt

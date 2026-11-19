@@ -46,6 +46,10 @@
       "then": {"properties": {"identity": {"required": ["orcid"], "properties": {"orcid": {"type": "string"}}}}}
     },
     {
+      "if": {"properties": {"kind": {"const": "journal-panel"}}},
+      "then": {"properties": {"identity": {"required": ["name"], "properties": {"name": {"type": "string", "minLength": 1}}}}}
+    },
+    {
       "if": {"properties": {"kind": {"const": "external-service"}}},
       "then": {"properties": {"identity": {"required": ["service"], "properties": {"service": {"type": "string", "minLength": 1}}}}}
     }

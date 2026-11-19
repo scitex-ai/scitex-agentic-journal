@@ -12,6 +12,7 @@ as a pass.
 from __future__ import annotations
 
 import json
+import shutil
 from importlib import metadata
 from pathlib import Path
 from typing import Any, Protocol
@@ -126,22 +127,24 @@ def checkout_repository(
     env = {**env, "GIT_ALLOW_PROTOCOL": "https:file" if allow_local else "https"}
     if dest.exists():
         head = run(["git", "-C", str(dest), "rev-parse", "HEAD"], env=env, timeout_s=30)
-        if head.returncode == 0 and head.stdout.strip() == commit:
+        dirty = run(["git", "-C", str(dest), "status", "--porcelain"], env=env, timeout_s=60)
+        if (
+            head.returncode == 0
+            and head.stdout.strip() == commit
+            and dirty.returncode == 0
+            and not dirty.stdout.strip()
+        ):
             return record(
                 "repository",
                 PASSED,
-                f"reused checkout at {commit}",
+                f"reused clean checkout at {commit}",
                 required=True,
                 tool=tool,
                 details={"url": url, "commit": commit, "path": str(dest)},
             ), dest
-        return record(
-            "repository",
-            FAILED,
-            f"{dest} exists but is not at {commit}; remove it and re-run",
-            required=True,
-            tool=tool,
-        ), None
+        # Stale, partial or modified: the journal owns this directory, so
+        # start over rather than trust it.
+        shutil.rmtree(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
     clone = run(
         ["git", "clone", "--quiet", "--no-checkout", "--", url, str(dest)],
@@ -149,6 +152,7 @@ def checkout_repository(
         timeout_s=GIT_TIMEOUT_S,
     )
     if clone.returncode != 0:
+        shutil.rmtree(dest, ignore_errors=True)
         why = "timed out" if clone.timed_out else tail(clone.stderr, 5)
         return record(
             "repository",
@@ -174,6 +178,7 @@ def checkout_repository(
         timeout_s=GIT_TIMEOUT_S,
     )
     if co.returncode != 0:
+        shutil.rmtree(dest, ignore_errors=True)
         return record(
             "repository",
             FAILED,
@@ -282,7 +287,7 @@ def check_scitex_form(
         "error_rules": error_rules,
         "all_rules_ran": meta.get("all_rules_ran"),
     }
-    if res.returncode == 2 or errors:
+    if res.returncode not in (0, 1) or errors:
         return record(
             "scitex-form",
             FAILED,
@@ -331,7 +336,7 @@ def check_main_claims(
             bad[cid] = "not registered"
         elif claim["state"] != "supported":
             bad[cid] = f"{claim['state']}: {claim['reason']}"
-        elif not claim.get("graph"):
+        elif not (claim.get("graph") or {}).get("nodes"):
             bad[cid] = "supported but carries no evidence graph"
     details = {
         "main_claims": manifest["main_claims"],

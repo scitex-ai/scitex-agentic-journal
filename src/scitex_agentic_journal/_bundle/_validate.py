@@ -108,7 +108,14 @@ def _check_files(result: BundleValidation, manifest: dict[str, Any]) -> None:
                 "symlink", f"{rel} is a symlink; bundles must hold real files", rel
             )
             continue
-        if path.is_file() and rel != MANIFEST:
+        if path.is_dir():
+            continue
+        if not path.is_file():
+            result.add(
+                "special-file", f"{rel} is not a regular file (fifo/socket/device)", rel
+            )
+            continue
+        if rel != MANIFEST:
             on_disk.add(rel)
     for rel in sorted(on_disk - set(listed)):
         result.add("unlisted-file", f"{rel} is in the bundle but not in files{{}}", rel)
@@ -177,9 +184,14 @@ def _packet_entries(packet: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
 def _check_packet(result: BundleValidation, packet: dict[str, Any]) -> None:
     try:
         vendored_entry(LIVE_PAPER, PACKET_SCHEMA_FILE)
-        schema = vendored_schema(LIVE_PAPER, PACKET_SCHEMA_FILE)
     except ContractError:
-        schema = None
+        schema = None  # not vendored at all: documented-field fallback below
+    else:
+        try:
+            schema = vendored_schema(LIVE_PAPER, PACKET_SCHEMA_FILE)
+        except ContractError as e:  # vendored but tampered: never fall back
+            result.add("contract-unavailable", str(e), PACKET_JSON)
+            return
     if schema is not None:
         for err in validate(packet, schema):
             result.add("review-packet-schema", err, PACKET_JSON)
@@ -203,49 +215,84 @@ def _check_packet(result: BundleValidation, packet: dict[str, Any]) -> None:
             result.add("review-packet-schema", f"{key} must be a list", PACKET_JSON)
 
 
+def _contains(packet_value: Any, report_value: Any) -> bool:
+    """True when the packet states everything the report states.
+
+    Objects may gain keys in the packet (e.g. ``source.value_reported``);
+    every report key must be present with a contained value. Lists must have
+    the same length with contained items; scalars must be equal.
+    """
+    if isinstance(report_value, dict):
+        return isinstance(packet_value, dict) and all(
+            k in packet_value and _contains(packet_value[k], v)
+            for k, v in report_value.items()
+        )
+    if isinstance(report_value, list):
+        return (
+            isinstance(packet_value, list)
+            and len(packet_value) == len(report_value)
+            and all(_contains(p, r) for p, r in zip(packet_value, report_value))
+        )
+    return packet_value == report_value
+
+
 def _check_consistency(
     result: BundleValidation,
     manifest: dict[str, Any],
     report: dict[str, Any],
     packet: dict[str, Any],
 ) -> None:
-    states = {
-        c["claim_id"]: c.get("state")
+    """The packet is what reviewers read: it must say what the report says.
+
+    Every field of a report claim must appear unchanged in its packet entry
+    (the packet may only add presentation fields such as ``label`` or
+    ``graph_url``).
+    """
+    claims = {
+        str(c["claim_id"]): c
         for c in report.get("claims", [])
         if isinstance(c, dict) and "claim_id" in c
     }
     entries = _packet_entries(packet)
-    packet_ids = [e.get("claim_id") for _, e in entries]
-    if sorted(packet_ids) != sorted(states):
+    packet_ids = sorted(str(e.get("claim_id")) for _, e in entries)
+    if packet_ids != sorted(claims):
         result.add(
             "packet-report-claims",
-            f"packet claims {sorted(map(str, packet_ids))} differ from the "
-            f"evidence report's {sorted(states)}",
+            f"packet claims {packet_ids} differ from the evidence report's "
+            f"{sorted(claims)}",
             PACKET_JSON,
         )
     for bucket, entry in entries:
-        cid = entry.get("claim_id")
-        if cid not in states:
+        cid = str(entry.get("claim_id"))
+        claim = claims.get(cid)
+        if claim is None:
             continue
-        if entry.get("state") != states[cid]:
-            result.add(
-                "packet-report-state",
-                f"claim {cid}: packet state {entry.get('state')!r} != report "
-                f"state {states[cid]!r}",
-                PACKET_JSON,
-            )
-        should_inspect = states[cid] != SUPPORTED
+        for key, value in claim.items():
+            if key not in entry:
+                result.add(
+                    "packet-report-field",
+                    f"claim {cid}: packet entry lacks report field {key!r}",
+                    PACKET_JSON,
+                )
+            elif not _contains(entry[key], value):
+                code = "packet-report-state" if key == "state" else "packet-report-field"
+                result.add(
+                    code,
+                    f"claim {cid}: packet {key} {entry[key]!r} != report {value!r}",
+                    PACKET_JSON,
+                )
+        should_inspect = claim.get("state") != SUPPORTED
         if bool(entry.get("needs_inspection")) != should_inspect or (
             (bucket == "needs_inspection") != should_inspect
         ):
             result.add(
                 "packet-inspection-flag",
                 f"claim {cid}: needs_inspection must be {should_inspect} for "
-                f"state {states[cid]!r}",
+                f"state {claim.get('state')!r}",
                 PACKET_JSON,
             )
     for cid in manifest.get("main_claims", []):
-        if cid not in states:
+        if cid not in claims:
             result.add(
                 "main-claim-unknown",
                 f"main claim {cid!r} is not a registered claim in the evidence report",
@@ -272,18 +319,23 @@ def validate_bundle(bundle_dir: Path | str) -> BundleValidation:
     elif manifest is not None:
         result.add("manifest-schema", "submission.json must be a JSON object", MANIFEST)
     report = _load_json(result, EVIDENCE_REPORT)
+    contract_ok = isinstance(report, dict)
     if isinstance(report, dict):
         result.evidence_report = report
+        before = len(result.findings)
         _check_report(result, report)
+        contract_ok = len(result.findings) == before
     packet = _load_json(result, PACKET_JSON)
     if isinstance(packet, dict):
         result.review_packet = packet
+        before = len(result.findings)
         _check_packet(result, packet)
-    if (
-        result.manifest is not None
-        and isinstance(report, dict)
-        and isinstance(packet, dict)
-    ):
+        contract_ok = contract_ok and len(result.findings) == before
+    else:
+        contract_ok = False
+    # Cross-checks assume both files honour their contracts; a schema
+    # failure is already a finding and must not crash the validator.
+    if result.manifest is not None and contract_ok:
         _check_consistency(result, result.manifest, report, packet)
     return result
 
@@ -306,6 +358,8 @@ def seal_bundle(bundle_dir: Path | str) -> dict[str, str]:
         rel = path.relative_to(root).as_posix()
         if path.is_symlink():
             raise ValueError(f"{rel} is a symlink; bundles must hold real files")
+        if not path.is_dir() and not path.is_file():
+            raise ValueError(f"{rel} is not a regular file (fifo/socket/device)")
         if path.is_file() and rel != MANIFEST:
             files[rel] = "sha256:" + file_sha256(path)
     manifest["files"] = files

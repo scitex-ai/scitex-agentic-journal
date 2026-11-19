@@ -44,9 +44,10 @@ alongside the legacy intake, which keeps working.
   validated against the journal's published schemas. The journal adds each
   claim's evidence state and records unmentioned claims as `not-assessed`.
   It refuses unknown claims and graph nodes, and refuses authors or
-  producers as reviewers. Identity is attested by channel, and reviewers get
-  per-submission pseudonyms. Findings are added to a de-duplicated local
-  ledger with stable finding keys.
+  producers as reviewers. The channel the identity arrived by is recorded (CLI channels are recorded as unverified; verified ORCID-login/service-key channels need an authenticated surface). Authors are refused by ORCID, by name and as listed producers. Reviewers get
+  per-submission pseudonyms. Findings are added to a local ledger keyed by
+  reviewer, anchor and dimension; re-filing never duplicates, and each round
+  recomputes a finding's severity and open/noted status.
 - Journal-owned JSON Schemas (`submission`, `review-report`,
   `review-source`) are published in the wheel under `_contracts/schemas/`.
 
