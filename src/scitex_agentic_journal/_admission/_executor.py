@@ -62,6 +62,7 @@ from scitex_agentic_journal._admission._sandbox import (
     SandboxRun,
     outcome_sha256,
 )
+from scitex_agentic_journal._contracts._clew import ContractError, contract_errors
 from scitex_agentic_journal._records import sha256_hex, write_record
 
 EVIDENCE_BUNDLE = Path(".scitex") / "clew" / "evidence-bundle.json"
@@ -104,6 +105,12 @@ def load_bundle(project: Path) -> tuple[dict[str, Any] | None, str | None, str]:
         return None, None, f"{EVIDENCE_BUNDLE} schema_version is not 1.x"
     if not isinstance(doc.get("runs"), list) or not isinstance(doc.get("claims"), list):
         return None, None, f"{EVIDENCE_BUNDLE} has no runs/claims lists"
+    try:
+        errors = contract_errors(doc, "evidence-bundle")
+    except ContractError as exc:
+        return None, None, f"Clew evidence contract unavailable: {exc}"
+    if errors:
+        return None, None, "evidence-bundle schema: " + "; ".join(errors[:5])
     return doc, sha256_hex(raw), ""
 
 
@@ -170,6 +177,7 @@ class ClewRerunExecutor:
         sandbox: ApptainerSandbox,
         *,
         clew_requirement: str,
+        sandbox_python: str = "python3",
         rerun_timeout_s: float = RERUN_TIMEOUT_S,
         install_timeout_s: float = INSTALL_TIMEOUT_S,
         run_root: Path | None = None,
@@ -181,6 +189,7 @@ class ClewRerunExecutor:
             )
         self.sandbox = sandbox
         self.clew_requirement = canonical
+        self.sandbox_python = sandbox_python
         self.rerun_timeout_s = rerun_timeout_s
         self.install_timeout_s = install_timeout_s
         self.run_root = run_root
@@ -245,7 +254,7 @@ class ClewRerunExecutor:
         self, run: SandboxRun, venv: str, wheels: str, reqs: str
     ) -> CommandResult:
         made = run.run_command(
-            ["python3", "-m", "venv", f"{WORK}/{venv}"],
+            [self.sandbox_python, "-m", "venv", f"{WORK}/{venv}"],
             timeout=self.install_timeout_s,
             phase=f"create-{venv}",
         )
@@ -273,7 +282,7 @@ class ClewRerunExecutor:
     ) -> CommandResult:
         return run.run_command(
             [
-                "python3",
+                f"{WORK}/fetch-venv/bin/python",
                 "-m",
                 "pip",
                 "download",
@@ -308,6 +317,18 @@ class ClewRerunExecutor:
             f"{self.clew_requirement}\n", encoding="utf-8"
         )
         run.note("dependencies", {**deps, "clew_requirement": self.clew_requirement})
+        bootstrap = run.run_command(
+            [self.sandbox_python, "-m", "venv", f"{WORK}/fetch-venv"],
+            timeout=self.install_timeout_s,
+            phase="create-fetch-venv",
+        )
+        if bootstrap.exit_code != 0:
+            return self._setup_failed(
+                run,
+                main_claims,
+                bootstrap,
+                "the image cannot create the fetch environment",
+            )
         for wheels, reqs, phase in (
             ("wheels", "requirements.txt", "fetch-dependencies"),
             ("clew-wheels", "clew-requirements.txt", "fetch-clew"),

@@ -6,6 +6,14 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
 
 ### Added
 
+- Validate portable Clew evidence-bundle 1.0.0 and rerun-report 1.0.0/1.1.0
+  using byte-pinned schemas from released Clew 0.36.0. Admission records an
+  optional format/main-claim-binding check without changing required checks
+  or claiming signature/file-hash verification. A genuine published-wheel
+  fixture covers contract consumption and isolated, host-verified replay.
+- Configure the image's Python with `--sandbox-python`; dependency downloads
+  use a private bootstrap venv, so the image needs no global pip install.
+
 - Isolated executor for the `executability` and `reproduction` admission
   checks (design §11 D17): `admission evaluate --executor apptainer
   --sandbox-image SIF --clew-requirement 'scitex-clew==X'` runs scitex-clew's
@@ -18,9 +26,9 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
   fresh and leaves only `out/outcome.json` (image sha256, apptainer version,
   flags, env names, per-phase argv/egress/timing/exit/output hashes); the
   check records cite it by hash. The default stays `--executor none`; both
-  checks remain non-blocking for admission (§13.1). SAC 0.40.x cannot be
-  used for this yet: its sealed runs require a TUI agent harness and a model
-  key.
+  checks remain non-blocking for admission (§13.1). This executor uses
+  Apptainer directly; integration with SAC 0.42.0's sealed plain commands
+  remains separate work.
   - The journal, on the host, is the authority: recorded outputs are deleted
     from the staged copy (and `.git` is not staged), clew replays into a kept
     `--work-dir`, and the host hashes every recorded output there itself

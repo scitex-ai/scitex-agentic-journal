@@ -1,0 +1,52 @@
+{
+  "schema": "scitex-clew.rerun-report",
+  "schema_version": "1.1.0",
+  "bundle_sha256": "f51e7bfe1d80967a835c699e71a60dcc2b119adb2eb83d9e4905283f3dd4d427",
+  "work_dir": "/work/released-clew-rerun",
+  "executable": true,
+  "interpreter": {
+    "name": "python",
+    "version": "3.12.14",
+    "executable": "/opt/venv-3.12/bin/python"
+  },
+  "runs": [
+    {
+      "run_id": "7a3e2980872e427ba9f59fadda77276c",
+      "exit_code": 0,
+      "status": "reproduced",
+      "reason": null,
+      "run_dir": null,
+      "outputs": [
+        {
+          "path": "results/total.json",
+          "resolved_path": "released-clew-fixture/results/total.json",
+          "expected_sha256": "d9f09d4eb0f4a258ee7043cc8efea6c602e5d89de9bad0ca7100a75ad7cf8e8c",
+          "actual_sha256": "d9f09d4eb0f4a258ee7043cc8efea6c602e5d89de9bad0ca7100a75ad7cf8e8c",
+          "match": true
+        }
+      ],
+      "stderr_tail": ""
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "total",
+      "status": "reproduced",
+      "stated_value": 6,
+      "recomputed_value": 6,
+      "tolerance": {
+        "abs_tol": 0.5,
+        "basis": "implied",
+        "fields": {
+          ".": {
+            "abs_tol": 0.5,
+            "basis": "implied",
+            "rel_tol": 0.0
+          }
+        },
+        "rel_tol": 0.0
+      },
+      "detail": ".: claimed 6 vs source 6 (|diff|=0; abs_tol=0.5, rel_tol=0, implied by precision)"
+    }
+  ]
+}

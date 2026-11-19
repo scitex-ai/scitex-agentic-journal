@@ -1,0 +1,29 @@
+{
+  "source_repo": "https://github.com/scitex-ai/scitex-clew",
+  "files": {
+    "evidence-bundle.schema.1.0.0.json": {
+      "contract": "scitex-clew.evidence-bundle",
+      "schema_id": "https://scitex.ai/schemas/scitex-clew/evidence-bundle/1.0.0",
+      "ref": "v0.36.0",
+      "commit": "6ebb780f7a5c1813c8445f8829ea8ba740cdaf62",
+      "path": "src/scitex_clew/_exchange/evidence-bundle.schema.1.0.0.json",
+      "sha256": "6ff53b645a79e4391ee11256c977ef7b74e785e7ea26e58b2b92c9377f0f22fc"
+    },
+    "rerun-report.schema.1.0.0.json": {
+      "contract": "scitex-clew.rerun-report",
+      "schema_id": "https://scitex.ai/schemas/scitex-clew/rerun-report/1.0.0",
+      "ref": "v0.36.0",
+      "commit": "6ebb780f7a5c1813c8445f8829ea8ba740cdaf62",
+      "path": "src/scitex_clew/_exchange/rerun-report.schema.1.0.0.json",
+      "sha256": "2386418fd14e7bc9a4ad8570ca3fc3d18344d8a53504af22d0e13f48b89d9c89"
+    },
+    "rerun-report.schema.1.1.0.json": {
+      "contract": "scitex-clew.rerun-report",
+      "schema_id": "https://scitex.ai/schemas/scitex-clew/rerun-report/1.1.0",
+      "ref": "v0.36.0",
+      "commit": "6ebb780f7a5c1813c8445f8829ea8ba740cdaf62",
+      "path": "src/scitex_clew/_exchange/rerun-report.schema.1.1.0.json",
+      "sha256": "d49110c08f7a633bab4f70be5185c05faac48797abbda06f4b734785ed519b82"
+    }
+  }
+}

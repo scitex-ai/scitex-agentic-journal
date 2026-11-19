@@ -18,6 +18,9 @@ TOOL = clew_tool("scitex-clew==0.0.0")
 BUNDLE = {
     "schema": "scitex-clew.evidence-bundle",
     "schema_version": "1.0.0",
+    "exported_at": "2026-11-20T00:00:00Z",
+    "clew_version": "0.36.0",
+    "project": {"project_id": "fixture", "root_name": "fixture"},
     "runs": [],
     "edges": [],
     "claims": [],

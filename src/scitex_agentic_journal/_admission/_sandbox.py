@@ -35,10 +35,9 @@ Author code never runs on the journal host. Every command started here runs as::
   the environment NAMES and every phase (argv, egress, timing, exit code,
   output hashes and sizes).
 
-SAC (scitex-agent-container) 0.40.x seals only TUI agent panes (a harness and a
-model key are mandatory: SAC docs/sandbox.md "Limits", ``_sandbox/_spec.py``
-``env.model_key``, ``_sandbox/_env_policy._require_tui_runtime``), so the
-journal drives apptainer directly with the same seal.
+The journal currently drives Apptainer directly. SAC (scitex-agent-container)
+0.42.0 also supports sealed plain commands; a shared-runtime adapter is a
+separate integration. The direct executor records its fetch egress limitation.
 """
 
 from __future__ import annotations

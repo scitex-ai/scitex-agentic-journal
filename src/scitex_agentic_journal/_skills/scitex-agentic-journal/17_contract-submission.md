@@ -53,8 +53,25 @@ canonical manifest.
 | `repository` | yes | `repository.commit` checks out without credentials; `https://` only (operator flag `--allow-local-repositories` for local journals) |
 | `scitex-form` | yes | `scitex-dev linter validate-files --json`: `.scitex/dev/config.yaml` declares `project-type: research`, there are 0 errors, and `all_rules_ran` |
 | `main-claims-evidence` | yes | every main claim is `supported` with an evidence graph |
+| `evidence-bundle` | no | validates the pinned checkout's optional `.scitex/clew/evidence-bundle.json` against Clew's released schema and binds its main claims to the submitted report; format/binding only, no signature or file-hash certification |
 | `clew-reverify` | no | `not-run`: Clew state lives in the authors' host store, not in the snapshot |
 | `executability`, `reproduction` | no | `not-run` unless an isolated executor is configured; author code never runs on the host |
+
+The portable contracts are vendored byte-for-byte from Clew `v0.36.0`, with
+source commit and SHA-256 pins in `VENDORED.json`: evidence-bundle `1.0.0`
+and rerun-report `1.0.0` / `1.1.0`. Unknown extension keys survive validation.
+Malformed paths/hashes and ambiguous repeated run/claim IDs are refused.
+No Clew import or host-store access is needed to validate these formats.
+
+For execution, select `--executor apptainer`, pin `--sandbox-image` and
+`--sandbox-image-sha256`, and use `--clew-requirement 'scitex-clew==0.36.0'`.
+If the image's Python is outside its default PATH, supply `--sandbox-python`
+(for the SciTeX CI image: `/opt/venv-3.12/bin/python`). It must support `venv`
+and `ensurepip`; a private fetch environment removes any need for global pip.
+Only wheel downloads have network access, before author files are staged;
+plain Apptainer does not restrict that phase's destination hosts, which is
+recorded in the outcome. All author-code phases are offline. The journal
+hashes replayed outputs itself; the sandbox's rerun report remains untrusted.
 
 ## Preprint
 

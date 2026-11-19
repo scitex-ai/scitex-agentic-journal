@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 
 import pytest
+
 from scitex_agentic_journal._admission import (
     PACKAGE_INDEX_EGRESS,
     ApptainerSandbox,
@@ -38,7 +39,11 @@ def _project(root: Path) -> Path:
 
 @pytest.fixture(scope="module")
 def sandbox(tmp_path_factory):
-    return ApptainerSandbox(Path(IMAGE), run_root=tmp_path_factory.mktemp("runs"))
+    return ApptainerSandbox(
+        Path(IMAGE),
+        run_root=tmp_path_factory.mktemp("runs"),
+        expected_sha256=os.environ.get("SCITEX_AGENTIC_JOURNAL_SANDBOX_IMAGE_SHA256"),
+    )
 
 
 @pytest.fixture(scope="module")
@@ -136,8 +141,13 @@ def test_egress_is_refused_once_author_files_are_staged(sandbox, tmp_path):
 BUNDLE = {
     "schema": "scitex-clew.evidence-bundle",
     "schema_version": "1.0.0",
+    "exported_at": "2026-11-20T00:00:00Z",
+    "clew_version": "0.36.0",
+    "project": {"project_id": "fixture", "root_name": "fixture"},
     "runs": [
         {"run_id": "r1", "argv": ["make_output.py"], "cwd": ".", "status": "success",
+         "script": "make_output.py", "interpreter": {"name": "python", "version": None},
+         "external_inputs": [], "started_at": None, "finished_at": None,
          "outputs": {"out.txt": "0" * 64}, "inputs": {}, "run_dir": None}
     ],
     "edges": [],
@@ -146,15 +156,13 @@ BUNDLE = {
 
 
 def test_executor_runs_every_phase_and_verifies_on_the_host(sandbox, tmp_path):
-    # Arrange: until clew ships `bundle rerun --work-dir`, the rerun phase
-    # reports nothing and the host finds no replayed output; every phase
-    # before it (fetch, offline installs) must still succeed.
+    # Arrange: a deliberately mismatched output still exercises every phase.
     project = _project(tmp_path / "p")
     (project / "requirements.txt").write_text("six==1.16.0\n")
     (project / EVIDENCE_BUNDLE).parent.mkdir(parents=True)
     (project / EVIDENCE_BUNDLE).write_text(json.dumps(BUNDLE))
     clew = os.environ.get(
-        "SCITEX_AGENTIC_JOURNAL_CLEW_REQUIREMENT", "scitex-clew==0.34.0"
+        "SCITEX_AGENTIC_JOURNAL_CLEW_REQUIREMENT", "scitex-clew==0.36.0"
     )
     executor = ClewRerunExecutor(
         sandbox, clew_requirement=clew, run_root=tmp_path / "r"
@@ -163,6 +171,7 @@ def test_executor_runs_every_phase_and_verifies_on_the_host(sandbox, tmp_path):
     records = executor.run(project, {"main_claims": ["c1"]})
     # Assert
     assert [p["phase"] for p in records[0]["details"]["sandbox"]["phases"]] == [
+        "create-fetch-venv",
         "fetch-dependencies",
         "fetch-clew",
         "create-venv",
@@ -171,6 +180,50 @@ def test_executor_runs_every_phase_and_verifies_on_the_host(sandbox, tmp_path):
         "install-clew-venv",
         "rerun",
     ]
+
+
+@pytest.fixture
+def released_replay(sandbox, tmp_path):
+    """A real sealed replay in this test's own writable directory."""
+    import shutil
+
+    fixture = Path(__file__).resolve().parents[1] / "fixtures/clew-0.36.0"
+    project = tmp_path / "genuine"
+    shutil.copytree(fixture / "project", project)
+    target = project / EVIDENCE_BUNDLE
+    target.parent.mkdir(parents=True)
+    target.write_bytes((fixture / "evidence-bundle.json").read_bytes())
+    bundle = json.loads(target.read_text())
+    executor = ClewRerunExecutor(
+        sandbox,
+        clew_requirement="scitex-clew==0.36.0",
+        sandbox_python=os.environ.get(
+            "SCITEX_AGENTIC_JOURNAL_SANDBOX_PYTHON", "python3"
+        ),
+        run_root=tmp_path / "runs",
+    )
+    return executor.run(
+        project, {"main_claims": ["total"]}, report={"claims": bundle["claims"]}
+    )
+
+
+def test_released_clew_fixture_reproduces_by_independent_host_hash(released_replay):
+    # Arrange
+    records = released_replay
+    # Act
+    details = records[1].get("details", {})
+    claims = details.get("claims", [])
+    summary = {
+        "checks": [(r["check"], r["status"]) for r in records],
+        "claim_by": claims[0].get("by") if claims else None,
+        "sandbox_trusted": details.get("sandbox_reported", {}).get("trusted"),
+    }
+    # Assert
+    assert summary == {
+        "checks": [("executability", "passed"), ("reproduction", "passed")],
+        "claim_by": "output-hash",
+        "sandbox_trusted": False,
+    }
 
 
 def test_staging_drops_git_history_and_recorded_outputs(sandbox, tmp_path):

@@ -20,6 +20,10 @@ human-readable counterpart.
 | `SCITEX_AGENTIC_JOURNAL_CONFIG` | `scitex-agentic-journal` CLI help epilog (issue #5 will wire actual config loading) | `./config.yaml` → `~/.scitex/agentic-journal/config.yaml` | Path to an alternate YAML config so a single repo checkout can be re-run against different submission configurations. |
 | `SCITEX_AGENTIC_JOURNAL_SKILLS_DEST` | `scitex-agentic-journal skills install` | `~/.claude/skills/scitex-agentic-journal/` | Default destination for `skills install` when no `--dest` is given. Convenient for CI / dotfile bootstrap. |
 | `SCITEX_AGENTIC_JOURNAL_CLEW_BIN` | `verify_clew_dag(clew_bin=...)` (M1.3 / issue #4) | resolved via `shutil.which("clew")` | Absolute path to the `clew` binary if it is not on PATH (e.g. virtualenv, sandbox installs). |
+| `SCITEX_AGENTIC_JOURNAL_SANDBOX_IMAGE` | `admission evaluate --executor apptainer` | unset | Approved image for isolated execution. |
+| `SCITEX_AGENTIC_JOURNAL_SANDBOX_IMAGE_SHA256` | `admission evaluate` | unset | Refuse execution if the image digest differs. |
+| `SCITEX_AGENTIC_JOURNAL_SANDBOX_PYTHON` | `admission evaluate` | `python3` | Python executable inside the image; must support `venv` and `ensurepip`. |
+| `SCITEX_AGENTIC_JOURNAL_CLEW_REQUIREMENT` | `admission evaluate` | unset | Pinned Clew release for the store-free rerun, e.g. `scitex-clew==0.36.0`. |
 
 ## Test-suite opt-ins
 

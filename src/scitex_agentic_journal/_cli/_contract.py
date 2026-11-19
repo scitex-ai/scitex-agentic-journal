@@ -40,6 +40,7 @@ def _build_executor(
     sandbox_image: Path | None,
     clew_requirement: str | None,
     sandbox_image_sha256: str | None = None,
+    sandbox_python: str = "python3",
 ) -> Any:
     """The admission executor named on the command line (``none`` -> ``None``)."""
     if kind == "none":
@@ -62,7 +63,9 @@ def _build_executor(
         )
     try:
         sandbox = ApptainerSandbox(sandbox_image, expected_sha256=sandbox_image_sha256)
-        return ClewRerunExecutor(sandbox, clew_requirement=clew_requirement)
+        return ClewRerunExecutor(
+            sandbox, clew_requirement=clew_requirement, sandbox_python=sandbox_python
+        )
     except SandboxError as e:
         raise _fail(e) from e
 
@@ -191,6 +194,13 @@ def register_contract_commands(main_group: click.Group) -> None:
         help="Pinned scitex-clew requirement installed in the sandbox, e.g. "
         "'scitex-clew==0.35.0' (needs 'clew bundle rerun').",
     )
+    @click.option(
+        "--sandbox-python",
+        default="python3",
+        show_default=True,
+        envvar="SCITEX_AGENTIC_JOURNAL_SANDBOX_PYTHON",
+        help="Python executable inside the image for wheel downloads and venv creation.",
+    )
     @_json_opt
     def admission_evaluate(
         submission_id: str,
@@ -199,6 +209,7 @@ def register_contract_commands(main_group: click.Group) -> None:
         sandbox_image: Path | None,
         sandbox_image_sha256: str | None,
         clew_requirement: str | None,
+        sandbox_python: str,
         as_json: bool,
     ) -> None:
         """Run every admission check for SUBMISSION_ID; exit 1 if not admitted.
@@ -215,7 +226,11 @@ def register_contract_commands(main_group: click.Group) -> None:
         from scitex_agentic_journal._records import RecordError
 
         runner = _build_executor(
-            executor, sandbox_image, clew_requirement, sandbox_image_sha256
+            executor,
+            sandbox_image,
+            clew_requirement,
+            sandbox_image_sha256,
+            sandbox_python,
         )
         try:
             rec = run_admission(

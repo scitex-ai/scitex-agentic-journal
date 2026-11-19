@@ -26,6 +26,7 @@ import json
 from typing import Any
 
 from scitex_agentic_journal._admission._checks import NOT_RUN, record
+from scitex_agentic_journal._contracts._clew import ContractError, contract_errors
 
 REPORT_SCHEMA = "scitex-clew.rerun-report"
 REPORT_MAJOR = "1"
@@ -75,6 +76,11 @@ def parse_rerun_report(text: str) -> dict[str, Any]:
             claim.get("status") in CLAIM_STATUSES,
             f"claim status {claim.get('status')!r}",
         )
+    try:
+        errors = contract_errors(report, "rerun-report")
+    except ContractError as exc:
+        raise RerunReportError(f"Clew rerun contract unavailable: {exc}") from exc
+    _require(not errors, "rerun-report schema: " + "; ".join(errors[:5]))
     return report
 
 

@@ -6,8 +6,8 @@ import json
 
 import pytest
 from click.testing import CliRunner
-from scitex_agentic_journal._cli import main
 
+from scitex_agentic_journal._cli import main
 from tests.scitex_agentic_journal._contract_helpers import (
     REFERENCE_BUNDLE,
     copy_reference_bundle,
@@ -112,6 +112,15 @@ def test_admission_evaluate_offers_an_image_pin(tmp_path):
     result = _evaluate(tmp_path, *args)
     # Assert
     assert "--sandbox-image-sha256" in result.output
+
+
+def test_admission_evaluate_offers_the_image_interpreter(tmp_path):
+    # Arrange
+    args = ("--help",)
+    # Act
+    result = _evaluate(tmp_path, *args)
+    # Assert
+    assert "--sandbox-python" in result.output
 
 
 def test_admission_evaluate_rejects_an_unknown_executor(tmp_path):

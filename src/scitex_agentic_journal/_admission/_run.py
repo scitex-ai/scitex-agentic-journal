@@ -29,6 +29,7 @@ from scitex_agentic_journal._admission._checks import (
     checkout_repository,
     record,
 )
+from scitex_agentic_journal._admission._evidence_check import check_evidence_bundle
 from scitex_agentic_journal._admission._proc import child_env
 from scitex_agentic_journal._bundle import bundle_path, load_intake, validate_bundle
 from scitex_agentic_journal._gate1._orcid import ORCID_PUB_API_BASE
@@ -89,6 +90,7 @@ def run_admission(
     checks.append(repo_check)
     checks.append(check_scitex_form(project, env=env, lint_argv=lint_argv))
     checks.append(check_main_claims(manifest, report))
+    checks.append(check_evidence_bundle(project, manifest, report))
     checks.append(check_clew_reverify())
     runner = executor or NoExecutor()
     if project is not None:
