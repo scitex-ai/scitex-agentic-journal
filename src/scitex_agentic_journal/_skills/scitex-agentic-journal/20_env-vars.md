@@ -20,6 +20,11 @@ human-readable counterpart.
 | `SCITEX_AGENTIC_JOURNAL_CONFIG` | `scitex-agentic-journal` CLI help epilog (issue #5 will wire actual config loading) | `./config.yaml` → `~/.scitex/agentic-journal/config.yaml` | Path to an alternate YAML config so a single repo checkout can be re-run against different submission configurations. |
 | `SCITEX_AGENTIC_JOURNAL_SKILLS_DEST` | `scitex-agentic-journal skills install` | `~/.claude/skills/scitex-agentic-journal/` | Default destination for `skills install` when no `--dest` is given. Convenient for CI / dotfile bootstrap. |
 | `SCITEX_AGENTIC_JOURNAL_CLEW_BIN` | `verify_clew_dag(clew_bin=...)` (M1.3 / issue #4) | resolved via `shutil.which("clew")` | Absolute path to the `clew` binary if it is not on PATH (e.g. virtualenv, sandbox installs). |
+| `SCITEX_AGENTIC_JOURNAL_SANDBOX_IMAGE` | `admission evaluate --executor apptainer` | unset | Approved image for isolated execution. |
+| `SCITEX_AGENTIC_JOURNAL_SANDBOX_IMAGE_SHA256` | `admission evaluate` | unset | Refuse execution if the image digest differs. |
+| `SCITEX_AGENTIC_JOURNAL_SANDBOX_PYTHON` | `admission evaluate` | `python3` | Python executable inside the image; must support `venv` and `ensurepip`. |
+| `SCITEX_AGENTIC_JOURNAL_CLEW_REQUIREMENT` | `admission evaluate` | unset | Pinned Clew release for the store-free rerun, e.g. `scitex-clew==0.36.0`. |
+| `SCITEX_AGENTIC_JOURNAL_SAC_BIN` | `admission evaluate --executor sac` | system PATH | Public SAC executable, version 0.42.0 or later. |
 
 ## Test-suite opt-ins
 
@@ -32,6 +37,7 @@ the tests under `tests/`.
 | `SCITEX_RUN_NETWORK_TESTS=1` | `tests/scitex_agentic_journal/_gate1/test__orcid.py`, `test__code_repo.py` | Enables the test that resolves a real `pub.orcid.org` ORCID record and the test that clones a real GitHub repo. Skipped by default. |
 | `SCITEX_RUN_CLEW_TESTS=1` | `tests/scitex_agentic_journal/_gate1/test__clew_dag.py` | Enables the real-binary tests that need `clew` but no store: marker discoverability on a freshly `clew register-source`-ed bundle, plus the unprovisioned-premise store-failure test (skipped where the store is provisioned). Skipped by default unless `clew` is also on PATH. |
 | `SCITEX_RUN_CLEW_STORE_TESTS=1` | `test__clew_dag.py`, `test__orchestrate.py`, `test__submit.py` | Enables the full-pass tests that register + verify against a live provisioned PostgreSQL clew store. Skipped by default. Where set, the unprovisioned-premise test (`test_real_clew_binary_store_failure_names_provisioning`, lead decision (a)) skips instead — its premise cannot occur there. |
+| `SCITEX_RUN_SAC_TESTS=1` | `test__sac.py` | Enables real filtered-network, cgroup-limit and genuine-fixture reproduction checks. Requires the sandbox image path/digest and SAC binary variables above; author code always runs in SAC. |
 
 ## Audit-rule provenance
 

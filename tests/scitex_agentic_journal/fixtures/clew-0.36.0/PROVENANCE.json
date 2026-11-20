@@ -1,0 +1,27 @@
+{
+  "producer": {
+    "distribution": "scitex-clew",
+    "version": "0.36.0",
+    "origin": "published PyPI wheel",
+    "tag": "v0.36.0",
+    "commit": "6ebb780f7a5c1813c8445f8829ea8ba740cdaf62"
+  },
+  "recording": "public clew.session, register_source and add_claim APIs; actual execution of project/scripts/sum.py",
+  "export_command": "python -m scitex_clew bundle export --project-root PROJECT --out BUNDLE --json",
+  "interpreter": "CPython 3.12.14",
+  "image_sha256": "aa5836a6c317640d7e20f01eb79aa7385b3dca2f369b595065c50ba3dd34a7d5",
+  "synthetic_data": true,
+  "author_code_dependencies": "Python standard library only",
+  "bundle_modified_after_export": false,
+  "sha256": {
+    "project/scripts/sum.py": "f511b2e57788fd0ad7443d148efa8f56499413c9621e7ed39bdee27ee9796f68",
+    "project/data/values.json": "67358ed8fd6cd4d8aac33acaa376b58237beb891c3e984e505d3e57e43f7d320",
+    "project/paper/paper.tex": "dc20ad72d65d6497d05f9c80487a0012b1b047070d97bf9ce699d39dc20ca364",
+    "project/results/total.json": "d9f09d4eb0f4a258ee7043cc8efea6c602e5d89de9bad0ca7100a75ad7cf8e8c",
+    "project/requirements.txt": "5e3df491b0e0216ef23d012519ea9c54c570bf22fcca7de126bd6e724fe9ef05",
+    "evidence-bundle.json": "f51e7bfe1d80967a835c699e71a60dcc2b119adb2eb83d9e4905283f3dd4d427",
+    "rerun-report.json": "7021038dc2ff87ff546613052d62f1cc8e4d6661bcc259c1b83545d40de9260e"
+  },
+  "rerun_command": "python -m scitex_clew bundle rerun BUNDLE --project-root PROJECT --work-dir /work/released-clew-rerun --python /opt/venv-3.12/bin/python --timeout 60 --json",
+  "rerun_store_access": "refused PostgreSQL DSN, offline isolated image; store-free replay"
+}
