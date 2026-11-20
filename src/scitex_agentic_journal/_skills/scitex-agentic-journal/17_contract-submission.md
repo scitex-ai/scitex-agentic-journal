@@ -53,8 +53,37 @@ canonical manifest.
 | `repository` | yes | `repository.commit` checks out without credentials; `https://` only (operator flag `--allow-local-repositories` for local journals) |
 | `scitex-form` | yes | `scitex-dev linter validate-files --json`: `.scitex/dev/config.yaml` declares `project-type: research`, there are 0 errors, and `all_rules_ran` |
 | `main-claims-evidence` | yes | every main claim is `supported` with an evidence graph |
+| `evidence-bundle` | no | validates the pinned checkout's optional `.scitex/clew/evidence-bundle.json` against Clew's released schema and binds its main claims to the submitted report; format/binding only, no signature or file-hash certification |
 | `clew-reverify` | no | `not-run`: Clew state lives in the authors' host store, not in the snapshot |
 | `executability`, `reproduction` | no | `not-run` unless an isolated executor is configured; author code never runs on the host |
+
+The portable contracts are vendored byte-for-byte from Clew `v0.36.0`, with
+source commit and SHA-256 pins in `VENDORED.json`: evidence-bundle `1.0.0`
+and rerun-report `1.0.0` / `1.1.0`. Unknown extension keys survive validation.
+Malformed paths/hashes and ambiguous repeated run/claim IDs are refused.
+No Clew import or host-store access is needed to validate these formats.
+
+For execution, install `scitex-agent-container>=0.42.0` and select
+`--executor sac --sac-bin /path/to/sac`. Pin `--sandbox-image` and
+`--sandbox-image-sha256`, and use `--clew-requirement 'scitex-clew==0.36.0'`.
+The image must support SAC's network gateway (`python3` on PATH), `venv` and
+`ensurepip`. The journal calls only SAC's public CLI, with no agent harness,
+model key or host credentials. Only pre-staging wheel downloads receive the
+PyPI/files.pythonhosted.org allowlist. Every author-code phase has empty
+egress. The sealed gateway's proxy variables are retained; caller variables
+are not passed. A private fetch venv removes the need for global pip.
+
+The journal bounds captured output and the whole run directory, including
+SAC's transient logs. It retains outcome/egress metadata per phase and removes
+the transient SAC layers/logs. Where user cgroups are delegated, a systemd
+scope limits the supervisor/container tree's memory, CPU and PID count.
+Availability and enforcement are recorded explicitly.
+
+`--executor apptainer` remains available for direct-runtime operators; its
+wheel-fetch phase cannot restrict destination hosts and records that limit.
+It accepts `--sandbox-python` when the image's interpreter is outside PATH
+(for the SciTeX CI image: `/opt/venv-3.12/bin/python`). In both runtimes, the
+journal hashes replayed outputs itself and keeps sandbox reports untrusted.
 
 ## Preprint
 

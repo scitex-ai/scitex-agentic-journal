@@ -18,6 +18,11 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from scitex_agentic_journal._admission._proc import run, tail
+from scitex_agentic_journal._netpolicy import (
+    OutboundBlockedError,
+    git_pin_args,
+    vet_https_url,
+)
 from scitex_agentic_journal._gate1 import GateFailure, verify_orcid
 from scitex_agentic_journal._gate1._orcid import ORCID_PUB_API_BASE
 
@@ -125,6 +130,21 @@ def checkout_repository(
             details={"url": url},
         ), None
     env = {**env, "GIT_ALLOW_PROTOCOL": "https:file" if allow_local else "https"}
+    pin: list[str] = []
+    if url.startswith("https://"):
+        # Resolve-then-connect: refuse private/loopback/link-local targets
+        # and pin git to the vetted address (no redirects, no rebinding).
+        try:
+            pin = git_pin_args(vet_https_url(url))
+        except OutboundBlockedError as e:
+            return record(
+                "repository",
+                FAILED,
+                str(e),
+                required=True,
+                tool=tool,
+                details={"url": url},
+            ), None
     if dest.exists():
         head = run(["git", "-C", str(dest), "rev-parse", "HEAD"], env=env, timeout_s=30)
         dirty = run(["git", "-C", str(dest), "status", "--porcelain"], env=env, timeout_s=60)
@@ -147,7 +167,7 @@ def checkout_repository(
         shutil.rmtree(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
     clone = run(
-        ["git", "clone", "--quiet", "--no-checkout", "--", url, str(dest)],
+        ["git", *pin, "clone", "--quiet", "--no-checkout", "--", url, str(dest)],
         env=env,
         timeout_s=GIT_TIMEOUT_S,
     )
@@ -383,7 +403,12 @@ class Executor(Protocol):
 
     name: str
 
-    def run(self, project: Path, manifest: dict[str, Any]) -> list[dict[str, Any]]: ...
+    def run(
+        self,
+        project: Path,
+        manifest: dict[str, Any],
+        report: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]: ...
 
 
 class NoExecutor:
@@ -391,7 +416,12 @@ class NoExecutor:
 
     name = "none"
 
-    def run(self, project: Path, manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    def run(
+        self,
+        project: Path,
+        manifest: dict[str, Any],
+        report: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         reason = (
             "no isolated executor is configured; author code never runs on the journal "
             "host outside an isolated executor (clew rerun is not isolated)"

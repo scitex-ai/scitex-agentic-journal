@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any
 
 from scitex_agentic_journal._admission._checks import (
+    FAILED,
+    NOT_RUN,
     PASSED,
     Executor,
     NoExecutor,
@@ -25,7 +27,9 @@ from scitex_agentic_journal._admission._checks import (
     check_orcid,
     check_scitex_form,
     checkout_repository,
+    record,
 )
+from scitex_agentic_journal._admission._evidence_check import check_evidence_bundle
 from scitex_agentic_journal._admission._proc import child_env
 from scitex_agentic_journal._bundle import bundle_path, load_intake, validate_bundle
 from scitex_agentic_journal._gate1._orcid import ORCID_PUB_API_BASE
@@ -86,10 +90,24 @@ def run_admission(
     checks.append(repo_check)
     checks.append(check_scitex_form(project, env=env, lint_argv=lint_argv))
     checks.append(check_main_claims(manifest, report))
+    checks.append(check_evidence_bundle(project, manifest, report))
     checks.append(check_clew_reverify())
     runner = executor or NoExecutor()
     if project is not None:
-        checks.extend(runner.run(project, manifest))
+        try:
+            checks.extend(runner.run(project, manifest, report=report))
+        except Exception as e:  # noqa: BLE001 - an executor never prevents the record
+            reason = f"executor {runner.name!r} failed: {type(e).__name__}: {e}"
+            checks.append(record("executability", FAILED, reason, required=False))
+            checks.append(
+                record(
+                    "reproduction",
+                    NOT_RUN,
+                    reason,
+                    required=False,
+                    details={"targets": manifest["main_claims"]},
+                )
+            )
     else:
         checks.extend(NoExecutor().run(Path("."), manifest))
 

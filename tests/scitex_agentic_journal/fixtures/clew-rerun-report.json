@@ -1,0 +1,62 @@
+{
+  "schema": "scitex-clew.rerun-report",
+  "schema_version": "1.1.0",
+  "bundle_sha256": "9f2c5e7a1b3d4c6e8f0a2b4c6d8e0f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3e",
+  "executable": true,
+  "work_dir": "/work/replay",
+  "interpreter": {"name": "python", "version": "3.12.3", "executable": "/work/venv/bin/python"},
+  "runs": [
+    {
+      "run_id": "run-train",
+      "exit_code": 0,
+      "status": "reproduced",
+      "reason": null,
+      "run_dir": null,
+      "outputs": [
+        {
+          "path": "results/metrics.json",
+          "expected_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+          "actual_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+          "match": true,
+          "resolved_path": "project/results/metrics.json"
+        }
+      ],
+      "stderr_tail": ""
+    },
+    {
+      "run_id": "run-count",
+      "exit_code": 0,
+      "status": "differs",
+      "reason": "scripts/count_out/RUNNING/s1/n_rows.json differ(s)",
+      "run_dir": "project/scripts/count_out/RUNNING/s2",
+      "outputs": [
+        {
+          "path": "scripts/count_out/RUNNING/s1/n_rows.json",
+          "expected_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+          "actual_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+          "match": false,
+          "resolved_path": "project/scripts/count_out/RUNNING/s2/n_rows.json"
+        }
+      ],
+      "stderr_tail": ""
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "auc",
+      "status": "reproduced",
+      "stated_value": 0.91,
+      "recomputed_value": 0.9104,
+      "tolerance": {"basis": "implied", "abs_tol": 0.005, "rel_tol": 0.0},
+      "detail": ".: claimed 0.91 vs source 0.9104"
+    },
+    {
+      "claim_id": "n_rows",
+      "status": "differs",
+      "stated_value": 1000,
+      "recomputed_value": 998,
+      "tolerance": {"basis": "implied", "abs_tol": 0.5, "rel_tol": 0.0},
+      "detail": ".: claimed 1000 vs source 998"
+    }
+  ]
+}
