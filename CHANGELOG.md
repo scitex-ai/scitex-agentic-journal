@@ -6,6 +6,13 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
 
 ### Added
 
+- `--executor sac` uses SAC 0.42.0's public sealed plain-command CLI, with
+  a host allowlist for pre-staging wheel downloads and empty author-code
+  egress. No agent harness, model key or SAC Python internals are used.
+  Per-phase SAC outcomes/egress metadata are retained. Systemd scopes apply
+  delegated memory/CPU/PID limits; the journal's disk watchdog also counts
+  SAC layers and transient logs, which are removed after each phase.
+
 - Validate portable Clew evidence-bundle 1.0.0 and rerun-report 1.0.0/1.1.0
   using byte-pinned schemas from released Clew 0.36.0. Admission records an
   optional format/main-claim-binding check without changing required checks
@@ -26,9 +33,8 @@ All notable changes to `scitex-agentic-journal` are documented in this file.
   fresh and leaves only `out/outcome.json` (image sha256, apptainer version,
   flags, env names, per-phase argv/egress/timing/exit/output hashes); the
   check records cite it by hash. The default stays `--executor none`; both
-  checks remain non-blocking for admission (§13.1). This executor uses
-  Apptainer directly; integration with SAC 0.42.0's sealed plain commands
-  remains separate work.
+  checks remain non-blocking for admission (§13.1). The direct runtime
+  remains available alongside SAC's filtered plain-command executor.
   - The journal, on the host, is the authority: recorded outputs are deleted
     from the staged copy (and `.git` is not staged), clew replays into a kept
     `--work-dir`, and the host hashes every recorded output there itself

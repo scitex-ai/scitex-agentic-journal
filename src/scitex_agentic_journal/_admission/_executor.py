@@ -75,10 +75,10 @@ RERUN_GRACE_S = 300.0
 WHEEL_ONLY = ("--only-binary=:all:", "--no-build-isolation", "--no-cache-dir")
 
 
-def clew_tool(clew_requirement: str) -> dict[str, Any]:
+def clew_tool(clew_requirement: str, runtime: str = "apptainer") -> dict[str, Any]:
     """The ``tool`` both check records name."""
     return {
-        "name": "scitex-clew bundle rerun (sealed apptainer sandbox, host-verified)",
+        "name": f"scitex-clew bundle rerun (sealed {runtime} sandbox, host-verified)",
         "version": clew_requirement,
     }
 
@@ -188,6 +188,7 @@ class ClewRerunExecutor:
                 f"--clew-requirement {clew_requirement!r} is not a plain requirement"
             )
         self.sandbox = sandbox
+        self.name = sandbox.kind
         self.clew_requirement = canonical
         self.sandbox_python = sandbox_python
         self.rerun_timeout_s = rerun_timeout_s
@@ -196,7 +197,7 @@ class ClewRerunExecutor:
 
     @property
     def tool(self) -> dict[str, Any]:
-        return clew_tool(self.clew_requirement)
+        return clew_tool(self.clew_requirement, self.sandbox.kind)
 
     def rerun_argv(self) -> list[str]:
         return [

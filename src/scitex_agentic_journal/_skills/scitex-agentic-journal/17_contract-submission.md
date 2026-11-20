@@ -63,15 +63,27 @@ and rerun-report `1.0.0` / `1.1.0`. Unknown extension keys survive validation.
 Malformed paths/hashes and ambiguous repeated run/claim IDs are refused.
 No Clew import or host-store access is needed to validate these formats.
 
-For execution, select `--executor apptainer`, pin `--sandbox-image` and
+For execution, install `scitex-agent-container>=0.42.0` and select
+`--executor sac --sac-bin /path/to/sac`. Pin `--sandbox-image` and
 `--sandbox-image-sha256`, and use `--clew-requirement 'scitex-clew==0.36.0'`.
-If the image's Python is outside its default PATH, supply `--sandbox-python`
-(for the SciTeX CI image: `/opt/venv-3.12/bin/python`). It must support `venv`
-and `ensurepip`; a private fetch environment removes any need for global pip.
-Only wheel downloads have network access, before author files are staged;
-plain Apptainer does not restrict that phase's destination hosts, which is
-recorded in the outcome. All author-code phases are offline. The journal
-hashes replayed outputs itself; the sandbox's rerun report remains untrusted.
+The image must support SAC's network gateway (`python3` on PATH), `venv` and
+`ensurepip`. The journal calls only SAC's public CLI, with no agent harness,
+model key or host credentials. Only pre-staging wheel downloads receive the
+PyPI/files.pythonhosted.org allowlist. Every author-code phase has empty
+egress. The sealed gateway's proxy variables are retained; caller variables
+are not passed. A private fetch venv removes the need for global pip.
+
+The journal bounds captured output and the whole run directory, including
+SAC's transient logs. It retains outcome/egress metadata per phase and removes
+the transient SAC layers/logs. Where user cgroups are delegated, a systemd
+scope limits the supervisor/container tree's memory, CPU and PID count.
+Availability and enforcement are recorded explicitly.
+
+`--executor apptainer` remains available for direct-runtime operators; its
+wheel-fetch phase cannot restrict destination hosts and records that limit.
+It accepts `--sandbox-python` when the image's interpreter is outside PATH
+(for the SciTeX CI image: `/opt/venv-3.12/bin/python`). In both runtimes, the
+journal hashes replayed outputs itself and keeps sandbox reports untrusted.
 
 ## Preprint
 

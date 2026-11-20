@@ -11,6 +11,7 @@ from scitex_agentic_journal._admission._checks import (
 )
 from scitex_agentic_journal._admission._executor import ClewRerunExecutor
 from scitex_agentic_journal._admission._run import load_admission, run_admission
+from scitex_agentic_journal._admission._sac import SacSandbox
 from scitex_agentic_journal._admission._sandbox import (
     NO_EGRESS,
     PACKAGE_INDEX_EGRESS,
@@ -31,6 +32,7 @@ __all__ = [
     "Executor",
     "NoExecutor",
     "ResourceLimits",
+    "SacSandbox",
     "SandboxError",
     "SandboxResult",
     "load_admission",

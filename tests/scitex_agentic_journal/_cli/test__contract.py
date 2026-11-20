@@ -102,7 +102,7 @@ def test_admission_evaluate_offers_none_and_apptainer_executors(tmp_path):
     # Act
     result = _evaluate(tmp_path, *args)
     # Assert
-    assert "[none|apptainer]" in result.output
+    assert "[none|sac|apptainer]" in result.output
 
 
 def test_admission_evaluate_offers_an_image_pin(tmp_path):

@@ -35,9 +35,9 @@ Author code never runs on the journal host. Every command started here runs as::
   the environment NAMES and every phase (argv, egress, timing, exit code,
   output hashes and sizes).
 
-The journal currently drives Apptainer directly. SAC (scitex-agent-container)
-0.42.0 also supports sealed plain commands; a shared-runtime adapter is a
-separate integration. The direct executor records its fetch egress limitation.
+This direct runtime records its fetch egress limitation. The preferred SAC
+adapter (:mod:`._sac`) uses the same staging/host-verification flow with SAC's
+public filtered plain-command CLI.
 """
 
 from __future__ import annotations
@@ -126,6 +126,7 @@ class ApptainerSandbox:
     """A sealed apptainer runtime bound to one image."""
 
     kind = "apptainer"
+    host_filtered_egress = False
 
     def __init__(
         self,
@@ -394,7 +395,9 @@ class SandboxRun:
             raise SandboxError(
                 "egress is closed once author files are staged into the run"
             )
-        full = self._argv(argv, network=bool(egress), pwd=pwd)
+        full = self._command_argv(
+            argv, network=bool(egress), pwd=pwd, timeout=timeout, phase=phase
+        )
         lim = self.sandbox.limits
         started, t0 = utcnow_iso(), time.monotonic()
         res = run_limited(
@@ -402,7 +405,7 @@ class SandboxRun:
             env=host_env(self.dir / "host-home", systemd_bus=self.sandbox.cgroups),
             timeout_s=timeout,
             output_cap=lim.output_cap_bytes,
-            watch=(self.work, lim.disk_bytes, lim.disk_poll_s),
+            watch=(self.watch_root(), lim.disk_bytes, lim.disk_poll_s),
         )
         duration = round(time.monotonic() - t0, 3)
         killed_for = (
@@ -412,14 +415,17 @@ class SandboxRun:
             {
                 "phase": phase,
                 "argv": list(argv),
-                "apptainer_argv": full,
+                "runner_argv": full,
+                **(
+                    {"apptainer_argv": full} if self.sandbox.kind == "apptainer" else {}
+                ),
                 "egress": {
                     "mode": "package-index" if egress else "none",
                     "hosts": list(egress),
                     # Plain apptainer has no per-host filter: a package-index phase
                     # has the host network, and is bounded by having no author file
                     # in the run and by pip --only-binary (nothing executed).
-                    "enforced": not egress,
+                    "enforced": not egress or self.sandbox.host_filtered_egress,
                     "author_files_present": self._staged,
                 },
                 "started_at": started,
@@ -435,6 +441,7 @@ class SandboxRun:
                 "output_truncated": max(res["stdout_total"], res["stderr_total"])
                 > lim.output_cap_bytes,
                 "stderr_tail": _tail(res["stderr"]),
+                **self.command_metadata(phase),
             }
         )
         return CommandResult(
@@ -446,6 +453,15 @@ class SandboxRun:
             duration,
             killed_for,
         )
+
+    def _command_argv(self, argv, *, network, pwd, timeout, phase):
+        return self._argv(argv, network=network, pwd=pwd)
+
+    def watch_root(self) -> Path:
+        return self.work
+
+    def command_metadata(self, phase: str) -> dict[str, Any]:
+        return {}
 
     def finalize(self) -> dict[str, Any]:
         """Write ``out/outcome.json``, remove every other layer, return the record."""

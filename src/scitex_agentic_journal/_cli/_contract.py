@@ -41,6 +41,7 @@ def _build_executor(
     clew_requirement: str | None,
     sandbox_image_sha256: str | None = None,
     sandbox_python: str = "python3",
+    sac_bin: Path | None = None,
 ) -> Any:
     """The admission executor named on the command line (``none`` -> ``None``)."""
     if kind == "none":
@@ -48,21 +49,28 @@ def _build_executor(
     from scitex_agentic_journal._admission import (
         ApptainerSandbox,
         ClewRerunExecutor,
+        SacSandbox,
         SandboxError,
     )
 
     if sandbox_image is None:
         raise click.UsageError(
-            "--executor apptainer needs --sandbox-image "
+            f"--executor {kind} needs --sandbox-image "
             "(or SCITEX_AGENTIC_JOURNAL_SANDBOX_IMAGE)"
         )
     if not clew_requirement:
         raise click.UsageError(
-            "--executor apptainer needs --clew-requirement "
+            f"--executor {kind} needs --clew-requirement "
             "(or SCITEX_AGENTIC_JOURNAL_CLEW_REQUIREMENT)"
         )
     try:
-        sandbox = ApptainerSandbox(sandbox_image, expected_sha256=sandbox_image_sha256)
+        sandbox = (
+            SacSandbox(
+                sandbox_image, sac_bin=sac_bin, expected_sha256=sandbox_image_sha256
+            )
+            if kind == "sac"
+            else ApptainerSandbox(sandbox_image, expected_sha256=sandbox_image_sha256)
+        )
         return ClewRerunExecutor(
             sandbox, clew_requirement=clew_requirement, sandbox_python=sandbox_python
         )
@@ -171,17 +179,23 @@ def register_contract_commands(main_group: click.Group) -> None:
     )
     @click.option(
         "--executor",
-        type=click.Choice(["none", "apptainer"]),
+        type=click.Choice(["none", "sac", "apptainer"]),
         default="none",
         show_default=True,
         help="Where author code runs for executability/reproduction: 'none' (never; "
-        "both checks not-run) or 'apptainer' (a sealed, offline container).",
+        "both checks not-run), 'sac' (host-filtered wheel fetches), or 'apptainer'.",
+    )
+    @click.option(
+        "--sac-bin",
+        type=click.Path(dir_okay=False, path_type=Path),
+        envvar="SCITEX_AGENTIC_JOURNAL_SAC_BIN",
+        help="Public SAC executable for --executor sac (requires SAC >=0.42.0).",
     )
     @click.option(
         "--sandbox-image",
         type=click.Path(dir_okay=False, path_type=Path),
         envvar="SCITEX_AGENTIC_JOURNAL_SANDBOX_IMAGE",
-        help="Apptainer image (.sif, with python3) for --executor apptainer.",
+        help="Approved SIF image for the isolated executor (SAC needs python3 on PATH).",
     )
     @click.option(
         "--sandbox-image-sha256",
@@ -210,6 +224,7 @@ def register_contract_commands(main_group: click.Group) -> None:
         sandbox_image_sha256: str | None,
         clew_requirement: str | None,
         sandbox_python: str,
+        sac_bin: Path | None,
         as_json: bool,
     ) -> None:
         """Run every admission check for SUBMISSION_ID; exit 1 if not admitted.
@@ -231,6 +246,7 @@ def register_contract_commands(main_group: click.Group) -> None:
             clew_requirement,
             sandbox_image_sha256,
             sandbox_python,
+            sac_bin,
         )
         try:
             rec = run_admission(
