@@ -1,0 +1,121 @@
+{
+  "claims": [
+    {
+      "claim_id": "total",
+      "claim_type": "value",
+      "graph": {
+        "edges": [
+          {
+            "kind": "input",
+            "source": "f1",
+            "target": "p1"
+          },
+          {
+            "kind": "output",
+            "source": "p1",
+            "target": "f2"
+          },
+          {
+            "kind": "supports",
+            "source": "f2",
+            "target": "c"
+          }
+        ],
+        "nodes": [
+          {
+            "id": "p1",
+            "kind": "process",
+            "label": "7a3e2980872e427ba9f59fadda77276c"
+          },
+          {
+            "hash": "67358ed8fd6cd4d8aac33acaa376b58237beb891c3e984e505d3e57e43f7d320",
+            "id": "f1",
+            "kind": "input",
+            "label": "data/values.json"
+          },
+          {
+            "hash": "d9f09d4eb0f4a258ee7043cc8efea6c602e5d89de9bad0ca7100a75ad7cf8e8c",
+            "id": "f2",
+            "kind": "output",
+            "label": "results/total.json"
+          },
+          {
+            "id": "c",
+            "kind": "claim",
+            "label": "total"
+          }
+        ],
+        "summary": "level-1 slice: 1 run(s), 2 file(s)"
+      },
+      "location": {
+        "file": "paper/paper.tex",
+        "label": "paper.tex:L1",
+        "line": 1
+      },
+      "precision": {
+        "abs_tol": 0.5,
+        "basis": "implied",
+        "fields": {
+          ".": {
+            "abs_tol": 0.5,
+            "basis": "implied",
+            "rel_tol": 0.0
+          }
+        },
+        "rel_tol": 0.0
+      },
+      "producing_runs": [
+        "7a3e2980872e427ba9f59fadda77276c"
+      ],
+      "reason": "value and sources check out against the recorded run",
+      "source": {
+        "file": "results/total.json",
+        "locator": {
+          ".": {
+            "pointer": "/total"
+          }
+        },
+        "value": 6
+      },
+      "state": "supported",
+      "stated_text": "6",
+      "stated_value": 6
+    }
+  ],
+  "clew_version": "0.36.0",
+  "edges": [],
+  "exported_at": "2026-11-19T23:35:53+00:00",
+  "project": {
+    "project_id": "clew-804bcf8831aa4bff93a6eb1f1fa13fb9",
+    "root_name": "released-clew-fixture"
+  },
+  "runs": [
+    {
+      "argv": [
+        "scripts/sum.py"
+      ],
+      "command": null,
+      "cwd": ".",
+      "external_inputs": [],
+      "finished_at": "2026-11-19T23:35:48.046984",
+      "inputs": {
+        "data/values.json": "67358ed8fd6cd4d8aac33acaa376b58237beb891c3e984e505d3e57e43f7d320"
+      },
+      "interpreter": {
+        "name": "python",
+        "version": "3.12.14"
+      },
+      "outputs": {
+        "results/total.json": "d9f09d4eb0f4a258ee7043cc8efea6c602e5d89de9bad0ca7100a75ad7cf8e8c"
+      },
+      "run_dir": null,
+      "run_id": "7a3e2980872e427ba9f59fadda77276c",
+      "script": "scripts/sum.py",
+      "script_sha256": "f511b2e57788fd0ad7443d148efa8f56499413c9621e7ed39bdee27ee9796f68",
+      "started_at": "2026-11-19T23:35:47.825270",
+      "status": "success"
+    }
+  ],
+  "schema": "scitex-clew.evidence-bundle",
+  "schema_version": "1.0.0"
+}

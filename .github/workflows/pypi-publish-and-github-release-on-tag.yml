@@ -45,7 +45,7 @@ jobs:
   # commit. The CI gate lives INSIDE this reusable (`promote: needs: ci`).
   # --------------------------------------------------------------------------
   promote:
-    uses: scitex-ai/.github/.github/workflows/promote-develop-to-main-on-tag.yml@23e11bbcb40ebbba54577d290fd26a6f65b2e346
+    uses: scitex-ai/.github/.github/workflows/promote-develop-to-main-on-tag.yml@3015806d742fba23cae7f782b169fe0732756ab3
     # The nested promote job opens/merges the develop->main PR: it requests
     # contents:write + pull-requests:write, which fails startup against the
     # file's top-level contents:read unless granted here (2026-10-18).

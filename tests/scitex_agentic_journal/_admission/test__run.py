@@ -159,3 +159,16 @@ def test_option_like_repository_url_is_never_passed_as_a_git_option(tmp_path):
     # Assert
     assert not (tmp_path / "pwned").exists()
 
+
+
+def test_https_repository_on_a_private_address_is_refused_before_cloning(tmp_path):
+    # Arrange
+    bundle = copy_reference_bundle(tmp_path / "bundle")
+    point_bundle_at(bundle, "https://169.254.169.254/latest/meta-data", "0" * 40)
+    home = tmp_path / "home"
+    sid = submit_bundle(bundle, home=home).submission_id
+    # Act
+    with OrcidServer() as orcid:
+        record = run_admission(sid, home=home, orcid_base_url=orcid)
+    # Assert
+    assert "non-public" in _check(record, "repository")["reason"]
